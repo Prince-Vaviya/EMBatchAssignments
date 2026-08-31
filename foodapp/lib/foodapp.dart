@@ -1,8 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+// ignore: avoid_web_libraries_in_flutter, deprecated_member_use
+import 'dart:html' as html;
 
 // ============================================================================
-// CRAVYY CELEBRATIONS - LUXURY CADBURY VELVET PURPLE & GOLD THEME
+// CRAVYY CELEBRATIONS - BRIGHT WHITE, SLATE & BRIGHT ORANGE THEME
 // ============================================================================
+
+bool checkShouldShowSplash() {
+  if (kIsWeb) {
+    try {
+      final visited = html.window.sessionStorage['has_seen_splash'];
+      if (visited == 'true') {
+        return false;
+      } else {
+        html.window.sessionStorage['has_seen_splash'] = 'true';
+        return true;
+      }
+    } catch (_) {
+      return true;
+    }
+  }
+  return true;
+}
 
 void main() {
   runApp(const MyApp());
@@ -18,11 +38,14 @@ class FoodItem {
   final String price;
   final int rawPrice;
   final IconData icon;
+  final String? assetPath;
+  final String? imageUrl;
   final double rating;
   final int reviewCount;
   final String deliveryTime;
   final bool isBestseller;
   final bool isVeg;
+  final bool isOutOfStock;
 
   const FoodItem({
     required this.name,
@@ -30,19 +53,236 @@ class FoodItem {
     required this.price,
     required this.rawPrice,
     required this.icon,
-    required this.rating,
+    this.assetPath,
+    this.imageUrl,
+    this.rating = 4.8,
     this.reviewCount = 120,
     this.deliveryTime = '20-25 mins',
     this.isBestseller = false,
     this.isVeg = true,
+    this.isOutOfStock = false,
+  });
+}
+
+class CustomOption {
+  final String name;
+  final int extraPrice;
+  final IconData icon;
+
+  const CustomOption({
+    required this.name,
+    this.extraPrice = 0,
+    this.icon = Icons.check_circle_outline,
+  });
+}
+
+class ComboItem {
+  final String id;
+  final String name;
+  final String description;
+  final int basePrice;
+  final IconData icon;
+  final String? assetPath;
+  final String? imageUrl;
+  final double rating;
+  final List<CustomOption> mainOptions;
+  final List<CustomOption> sideOptions;
+  final List<CustomOption> beverageOptions;
+  final List<CustomOption> addonOptions;
+  final bool isOutOfStock;
+
+  const ComboItem({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.basePrice,
+    required this.icon,
+    this.assetPath,
+    this.imageUrl,
+    this.rating = 4.8,
+    required this.mainOptions,
+    required this.sideOptions,
+    required this.beverageOptions,
+    this.addonOptions = const [],
+    this.isOutOfStock = false,
   });
 }
 
 class CartItem {
-  final FoodItem food;
+  final String title;
+  final int unitPrice;
   int quantity;
+  final IconData icon;
+  final String? assetPath;
+  final String? imageUrl;
+  final String? customizations;
 
-  CartItem({required this.food, this.quantity = 1});
+  CartItem({
+    required this.title,
+    required this.unitPrice,
+    this.quantity = 1,
+    required this.icon,
+    this.assetPath,
+    this.imageUrl,
+    this.customizations,
+  });
+}
+
+// ----------------------------------------------------------------------------
+// FOOD IMAGE & OUT-OF-STOCK OVERLAY WIDGET
+// ----------------------------------------------------------------------------
+class FoodImageWidget extends StatelessWidget {
+  final String? assetPath;
+  final String? networkUrl;
+  final IconData icon;
+  final double? width;
+  final double? height;
+  final double borderRadius;
+  final bool isOutOfStock;
+
+  const FoodImageWidget({
+    super.key,
+    this.assetPath,
+    this.networkUrl,
+    required this.icon,
+    this.width,
+    this.height,
+    this.borderRadius = 14,
+    this.isOutOfStock = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(
+          color: isOutOfStock
+              ? Colors.red.shade300
+              : MyApp.orangeBorder.withValues(alpha: 0.6),
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius - 1),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _buildImageContent(),
+            if (isOutOfStock) _buildSlantingOutOfStockBadge(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageContent() {
+    if (assetPath != null && assetPath!.isNotEmpty) {
+      return Image.asset(
+        assetPath!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          if (networkUrl != null && networkUrl!.isNotEmpty) {
+            return _buildNetworkImage();
+          }
+          return _buildFallbackIcon();
+        },
+      );
+    } else if (networkUrl != null && networkUrl!.isNotEmpty) {
+      return _buildNetworkImage();
+    } else {
+      return _buildFallbackIcon();
+    }
+  }
+
+  Widget _buildNetworkImage() {
+    return Image.network(
+      networkUrl!,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return Container(
+          color: MyApp.orangeLight,
+          child: const Center(
+            child: SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: MyApp.brightOrange,
+              ),
+            ),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        return _buildFallbackIcon(isError: true);
+      },
+    );
+  }
+
+  Widget _buildFallbackIcon({bool isError = false}) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Container(
+          color: MyApp.orangeLight,
+          child: Center(
+            child: Icon(
+              icon,
+              size: 38,
+              color: MyApp.brightOrange.withValues(alpha: isError ? 0.35 : 1.0),
+            ),
+          ),
+        ),
+        if (isError || isOutOfStock) _buildSlantingOutOfStockBadge(),
+      ],
+    );
+  }
+
+  Widget _buildSlantingOutOfStockBadge() {
+    return Container(
+      color: Colors.black.withValues(alpha: 0.45),
+      child: Center(
+        child: Transform.rotate(
+          angle: -0.28, // Slanting diagonal ~ -16 degrees
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.red.shade700.withValues(alpha: 0.95),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.white, width: 1.5),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black54,
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Text(
+              'OUT OF STOCK',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 11,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class OrderItem {
@@ -80,21 +320,38 @@ class Coupon {
 }
 
 // ============================================================================
-// THEME CONFIGURATION (RICH VELVET PURPLE, ELECTRIC VIOLET & CELEBRATION GOLD)
+// THEME CONFIGURATION (BRIGHT WHITE, SLATE & VIBRANT ORANGE)
 // ============================================================================
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // Cadbury Palette
-  static const Color midnightBg = Color(0xFF150028);     // Midnight Velvet Purple
-  static const Color surfaceDark = Color(0xFF240242);    // Dark Violet Surface
-  static const Color cardBg = Color(0xFF2F0554);         // Elevated Card Velvet
-  static const Color royalPurple = Color(0xFF4A0E78);    // Rich Cadbury Purple
-  static const Color vibrantViolet = Color(0xFF9333EA);  // Electric Violet Accent
-  static const Color celebrationGold = Color(0xFFFFB800); // Shimmering Gold
-  static const Color softGold = Color(0xFFFEF08A);        // Bright Golden Cream
-  static const Color lavenderText = Color(0xFFE9D5FF);    // Soft Lavender Text
-  static const Color mutedText = Color(0xFFC084FC);       // Muted Violet Text
+  // White, Slate & Bright Orange Palette
+  static const Color slateBg = Color(0xFFF8FAFC); // Slate-50 Crisp Clean Canvas
+  static const Color surfaceWhite = Color(0xFFFFFFFF); // Pure White Surface
+  static const Color cardWhite = Color(0xFFFFFFFF); // Elevated Card White
+  static const Color brightOrange = Color(0xFFFF5E00); // Electric Bright Orange
+  static const Color orangeLight = Color(
+    0xFFFFF7ED,
+  ); // Soft Orange Tint (Orange-50)
+  static const Color orangeBorder = Color(0xFFFFEDD5); // Orange-100 Border Tint
+  static const Color slateBorder = Color(0xFFE2E8F0); // Slate-200 Subtle Border
+  static const Color slate900 = Color(0xFF0F172A); // Deep Slate-900 Headings
+  static const Color slate700 = Color(0xFF334155); // Slate-700 Body Text
+  static const Color slate600 = Color(0xFF475569); // Slate-600 Subtitles
+  static const Color slate400 = Color(
+    0xFF94A3B8,
+  ); // Slate-400 Muted / Placeholders
+
+  // Design Tokens Mapping
+  static const Color midnightBg = slateBg;
+  static const Color surfaceDark = surfaceWhite;
+  static const Color cardBg = cardWhite;
+  static const Color royalPurple = orangeLight;
+  static const Color vibrantViolet = brightOrange;
+  static const Color celebrationGold = brightOrange;
+  static const Color softGold = slate900;
+  static const Color lavenderText = slate600;
+  static const Color mutedText = slate400;
 
   @override
   Widget build(BuildContext context) {
@@ -103,25 +360,405 @@ class MyApp extends StatelessWidget {
       title: 'Cravyy Celebrations',
       theme: ThemeData(
         useMaterial3: true,
-        brightness: Brightness.dark,
+        brightness: Brightness.light,
         fontFamily: 'Inter',
-        colorScheme: const ColorScheme.dark(
-          primary: celebrationGold,
-          secondary: vibrantViolet,
-          surface: surfaceDark,
+        colorScheme: const ColorScheme.light(
+          primary: brightOrange,
+          secondary: brightOrange,
+          surface: surfaceWhite,
         ),
-        scaffoldBackgroundColor: midnightBg,
+        scaffoldBackgroundColor: slateBg,
         appBarTheme: const AppBarTheme(
-          backgroundColor: surfaceDark,
-          foregroundColor: softGold,
+          backgroundColor: surfaceWhite,
+          foregroundColor: slate900,
           elevation: 0,
-          scrolledUnderElevation: 2,
+          scrolledUnderElevation: 1,
           surfaceTintColor: Colors.transparent,
+          iconTheme: IconThemeData(color: slate900),
+          titleTextStyle: TextStyle(
+            color: slate900,
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
-      home: const DashboardScreen(),
+      home: checkShouldShowSplash()
+          ? const SplashScreen()
+          : const DashboardScreen(),
     );
   }
+}
+
+// ============================================================================
+// ANIMATED "BON APPÉTIT" BRIGHT ORANGE SPLASH SCREEN
+// ============================================================================
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _steamAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    );
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.7, curve: Curves.easeOutBack),
+      ),
+    );
+
+    _steamAnimation = Tween<double>(begin: 0.0, end: -8.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.5, 1.0, curve: Curves.easeInOut),
+      ),
+    );
+
+    _controller.forward();
+
+    // Auto navigate to Dashboard after 2.4 seconds
+    Future.delayed(const Duration(milliseconds: 2400), () {
+      if (mounted) {
+        _navigateToDashboard();
+      }
+    });
+  }
+
+  void _navigateToDashboard() {
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 600),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const DashboardScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: GestureDetector(
+        onTap: _navigateToDashboard,
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFFF5E00), // Vibrant Bright Orange
+                Color(0xFFEA580C), // Rich Warm Orange
+                Color(0xFFC2410C), // Deep Fiery Orange
+              ],
+            ),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Subtle background watermark food sketches
+              Positioned(
+                top: 80,
+                right: 30,
+                child: Opacity(
+                  opacity: 0.08,
+                  child: const Icon(
+                    Icons.local_pizza_outlined,
+                    size: 130,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 120,
+                left: 20,
+                child: Opacity(
+                  opacity: 0.08,
+                  child: const Icon(
+                    Icons.lunch_dining_outlined,
+                    size: 140,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 180,
+                left: 40,
+                child: Opacity(
+                  opacity: 0.08,
+                  child: const Icon(
+                    Icons.local_cafe_outlined,
+                    size: 90,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 80,
+                right: 30,
+                child: Opacity(
+                  opacity: 0.08,
+                  child: const Icon(
+                    Icons.cake_outlined,
+                    size: 110,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+
+              // Central Brand Cloche + "Bon Appétit" + Golden Brush Stroke
+              AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  return FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: ScaleTransition(
+                      scale: _scaleAnimation,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // STEAM & CLOCHE COVER
+                          Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Transform.translate(
+                                offset: Offset(0, _steamAnimation.value - 40),
+                                child: Opacity(
+                                  opacity: _controller.value > 0.4
+                                      ? (_controller.value - 0.4) / 0.6
+                                      : 0.0,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: const [
+                                      Icon(
+                                        Icons.air,
+                                        size: 24,
+                                        color: Colors.white,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.all(22),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.15,
+                                      ),
+                                      blurRadius: 30,
+                                      spreadRadius: 4,
+                                    ),
+                                  ],
+                                ),
+                                child: CustomPaint(
+                                  size: const Size(95, 75),
+                                  painter: ClochePainter(),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 18),
+
+                          // "Bon Appétit" Crisp White Typography
+                          const Text(
+                            'Bon\nAppétit',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 46,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: -0.5,
+                              height: 1.05,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          // Curved Golden Brush Underline
+                          CustomPaint(
+                            size: const Size(140, 16),
+                            painter: GoldenBrushStrokePainter(),
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // App Subtitle Tagline
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(
+                                  Icons.auto_awesome,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'CRAVYY CELEBRATIONS',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              // Bottom Tap Hint
+              Positioned(
+                bottom: 30,
+                child: Opacity(
+                  opacity: 0.85,
+                  child: Row(
+                    children: const [
+                      Text(
+                        'Tap to explore feast',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(Icons.arrow_forward, size: 14, color: Colors.white),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------------------------
+// CUSTOM PAINTER: RESTAURANT FOOD CLOCHE DOME WITH KNOB & SERVING BASE
+// ----------------------------------------------------------------------------
+class ClochePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    final goldPaint = Paint()
+      ..color = const Color(0xFFFFD166)
+      ..style = PaintingStyle.fill;
+
+    // Dome shape
+    final path = Path();
+    path.moveTo(8, size.height - 8);
+    path.arcToPoint(
+      Offset(size.width - 8, size.height - 8),
+      radius: Radius.circular(size.width / 2.1),
+      clockwise: true,
+    );
+    path.close();
+    canvas.drawPath(path, paint);
+
+    // Serving tray base rim
+    final baseRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, size.height - 7, size.width, 6),
+      const Radius.circular(3),
+    );
+    canvas.drawRRect(baseRect, paint);
+
+    // Top knob (handle)
+    canvas.drawCircle(
+      Offset(size.width / 2, size.height * 0.15),
+      5.5,
+      goldPaint,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(size.width / 2 - 2, size.height * 0.15, 4, 8),
+      goldPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ----------------------------------------------------------------------------
+// CUSTOM PAINTER: GOLDEN BRUSH STROKE UNDERLINE
+// ----------------------------------------------------------------------------
+class GoldenBrushStrokePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFFFD166)
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+    path.moveTo(0, size.height * 0.6);
+    path.quadraticBezierTo(size.width * 0.5, 0, size.width, size.height * 0.4);
+    path.quadraticBezierTo(
+      size.width * 0.55,
+      size.height * 0.9,
+      0,
+      size.height * 0.6,
+    );
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // ============================================================================
@@ -139,6 +776,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final Set<String> favoriteItemNames = {};
 
   final List<CartItem> cartItems = [];
+
+  // Sequential order ID counter
+  int _nextOrderNumber = 1004;
+
+  // Live dynamic orders list (Newest order always placed at index 0 on top)
+  final List<OrderItem> userOrders = [
+    const OrderItem(
+      id: '#1003',
+      food: '1x Royal Pizza Party Combo (Tandoori Paneer Tikka Pizza)',
+      status: 'Delivered',
+      time: '12:00 PM',
+      amount: 424,
+    ),
+    const OrderItem(
+      id: '#1002',
+      food: '2x Veggie Burger Deluxe + 1x Cold Coffee',
+      status: 'Delivered',
+      time: '11:15 AM',
+      amount: 298,
+    ),
+    const OrderItem(
+      id: '#1001',
+      food: '1x Festive Burger Feast Combo (Peri-Peri Fries)',
+      status: 'Delivered',
+      time: '10:30 AM',
+      amount: 319,
+    ),
+  ];
 
   final List<Coupon> availableCoupons = const [
     Coupon(
@@ -173,17 +838,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Coupon? appliedCoupon;
 
-  int get totalCartCount => cartItems.fold(0, (sum, item) => sum + item.quantity);
+  int get totalCartCount =>
+      cartItems.fold(0, (sum, item) => sum + item.quantity);
 
   int get subtotalCartPrice =>
-      cartItems.fold(0, (sum, item) => sum + (item.food.rawPrice * item.quantity));
+      cartItems.fold(0, (sum, item) => sum + (item.unitPrice * item.quantity));
 
   int get discountAmount {
     if (appliedCoupon == null || subtotalCartPrice == 0) return 0;
 
     int discount = 0;
     if (appliedCoupon!.percentageDiscount > 0) {
-      discount = (subtotalCartPrice * appliedCoupon!.percentageDiscount).round();
+      discount = (subtotalCartPrice * appliedCoupon!.percentageDiscount)
+          .round();
     } else if (appliedCoupon!.flatDiscount > 0) {
       discount = appliedCoupon!.flatDiscount;
     }
@@ -209,62 +876,142 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  void addToCart(FoodItem item) {
+  void addFoodToCart(FoodItem item) {
     setState(() {
-      int index = cartItems.indexWhere((c) => c.food.name == item.name);
+      int index = cartItems.indexWhere(
+        (c) => c.title == item.name && c.customizations == null,
+      );
       if (index != -1) {
         cartItems[index].quantity++;
       } else {
-        cartItems.add(CartItem(food: item, quantity: 1));
+        cartItems.add(
+          CartItem(
+            title: item.name,
+            unitPrice: item.rawPrice,
+            icon: item.icon,
+            quantity: 1,
+          ),
+        );
       }
     });
+    _showAddedSnackBar(item.name);
+  }
 
+  void addCustomizedComboToCart({
+    required ComboItem combo,
+    required CustomOption selectedMain,
+    required CustomOption selectedSide,
+    required CustomOption selectedBev,
+    required List<CustomOption> selectedAddons,
+    required int totalPrice,
+  }) {
+    final addonsText = selectedAddons.map((a) => a.name).join(' • ');
+    final customizations =
+        '${selectedMain.name} • ${selectedSide.name} • ${selectedBev.name}'
+        '${addonsText.isNotEmpty ? ' • $addonsText' : ''}';
+
+    setState(() {
+      cartItems.add(
+        CartItem(
+          title: combo.name,
+          unitPrice: totalPrice,
+          quantity: 1,
+          icon: combo.icon,
+          customizations: customizations,
+        ),
+      );
+    });
+    _showAddedSnackBar(combo.name);
+  }
+
+  void _showAddedSnackBar(String title) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle, color: MyApp.celebrationGold, size: 20),
+            const Icon(Icons.check_circle, color: MyApp.brightOrange, size: 20),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Added ${item.name} ($totalCartCount items in cart)',
-                style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                'Added $title ($totalCartCount items in cart)',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],
         ),
-        backgroundColor: MyApp.cardBg,
+        backgroundColor: MyApp.slate900,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: MyApp.celebrationGold, width: 1.2),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         duration: const Duration(seconds: 2),
         action: SnackBarAction(
           label: 'VIEW CART',
-          textColor: MyApp.celebrationGold,
+          textColor: MyApp.brightOrange,
           onPressed: openCartSheet,
         ),
       ),
     );
   }
 
-  void removeFromCart(FoodItem item) {
+  void incrementCartItem(int index) {
     setState(() {
-      int index = cartItems.indexWhere((c) => c.food.name == item.name);
-      if (index != -1) {
-        if (cartItems[index].quantity > 1) {
-          cartItems[index].quantity--;
-        } else {
-          cartItems.removeAt(index);
-        }
+      cartItems[index].quantity++;
+    });
+  }
+
+  void decrementCartItem(int index) {
+    setState(() {
+      if (cartItems[index].quantity > 1) {
+        cartItems[index].quantity--;
+      } else {
+        cartItems.removeAt(index);
       }
     });
   }
 
   void clearCart() {
     setState(() {
+      cartItems.clear();
+      appliedCoupon = null;
+    });
+  }
+
+  void placeCurrentOrder() {
+    if (cartItems.isEmpty) return;
+
+    final now = DateTime.now();
+    final hour = now.hour > 12
+        ? now.hour - 12
+        : (now.hour == 0 ? 12 : now.hour);
+    final period = now.hour >= 12 ? 'PM' : 'AM';
+    final minuteStr = now.minute.toString().padLeft(2, '0');
+    final formattedTime = '$hour:$minuteStr $period';
+
+    final orderSummary = cartItems
+        .map(
+          (item) =>
+              '${item.quantity}x ${item.title}'
+              '${item.customizations != null ? ' (${item.customizations})' : ''}',
+        )
+        .join(', ');
+
+    final newOrderId = '#$_nextOrderNumber';
+    _nextOrderNumber++;
+    final currentPaidAmount = finalPayablePrice;
+
+    final newOrder = OrderItem(
+      id: newOrderId,
+      food: orderSummary,
+      status: 'Preparing',
+      time: formattedTime,
+      amount: currentPaidAmount,
+    );
+
+    setState(() {
+      userOrders.insert(0, newOrder);
       cartItems.clear();
       appliedCoupon = null;
     });
@@ -280,7 +1027,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Invalid coupon code "$code". Please try another!'),
-          backgroundColor: Colors.red.shade900,
+          backgroundColor: Colors.red.shade700,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -295,22 +1042,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.verified, color: MyApp.celebrationGold, size: 20),
+            const Icon(Icons.verified, color: MyApp.brightOrange, size: 20),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 'Coupon "${coupon.code}" applied! You saved ₹$discountAmount!',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],
         ),
-        backgroundColor: MyApp.cardBg,
+        backgroundColor: MyApp.slate900,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: MyApp.celebrationGold, width: 1.2),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
     return true;
@@ -323,12 +1070,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Coupon removed.'),
-        backgroundColor: MyApp.cardBg,
+        backgroundColor: MyApp.slate900,
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
+  // MODERN SLATE & ORANGE CART SHEET
   void openCartSheet() {
     final TextEditingController couponInputController = TextEditingController();
 
@@ -342,9 +1090,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             return Container(
               height: MediaQuery.of(context).size.height * 0.85,
               decoration: const BoxDecoration(
-                color: MyApp.surfaceDark,
+                color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                border: Border(top: BorderSide(color: MyApp.celebrationGold, width: 1.5)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 20,
+                    offset: Offset(0, -4),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
@@ -353,12 +1107,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     width: 44,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: MyApp.vibrantViolet.withValues(alpha: 0.5),
+                      color: MyApp.slateBorder,
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -367,12 +1124,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: MyApp.celebrationGold.withValues(alpha: 0.15),
+                                color: MyApp.orangeLight,
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
                                 Icons.shopping_bag_outlined,
-                                color: MyApp.celebrationGold,
+                                color: MyApp.brightOrange,
                                 size: 22,
                               ),
                             ),
@@ -385,13 +1142,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    color: MyApp.softGold,
+                                    color: MyApp.slate900,
                                   ),
                                 ),
                                 Text(
                                   '$totalCartCount items selected',
                                   style: const TextStyle(
-                                    color: MyApp.mutedText,
+                                    color: MyApp.slate600,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -407,13 +1164,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             },
                             child: const Text(
                               'Clear All',
-                              style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                color: Colors.redAccent,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                       ],
                     ),
                   ),
-                  Divider(height: 1, color: MyApp.vibrantViolet.withValues(alpha: 0.2)),
+                  Divider(height: 1, color: MyApp.slateBorder),
                   Expanded(
                     child: cartItems.isEmpty
                         ? Center(
@@ -425,30 +1185,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(22),
                                     decoration: BoxDecoration(
-                                      color: MyApp.cardBg,
+                                      color: MyApp.orangeLight,
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: MyApp.celebrationGold.withValues(alpha: 0.3)),
                                     ),
                                     child: const Icon(
                                       Icons.fastfood_outlined,
                                       size: 55,
-                                      color: MyApp.celebrationGold,
+                                      color: MyApp.brightOrange,
                                     ),
                                   ),
                                   const SizedBox(height: 16),
                                   const Text(
-                                    'Your Cart is Hungry!',
+                                    'Your Cart is Empty',
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
-                                      color: MyApp.softGold,
+                                      color: MyApp.slate900,
                                     ),
                                   ),
                                   const SizedBox(height: 6),
                                   const Text(
-                                    'Explore our Cadbury Celebrations feast and add your favorite treats!',
+                                    'Explore our fresh menu or custom combos and add delicious items!',
                                     textAlign: TextAlign.center,
-                                    style: TextStyle(color: MyApp.lavenderText, fontSize: 13),
+                                    style: TextStyle(
+                                      color: MyApp.slate600,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -457,98 +1219,171 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         : ListView(
                             padding: const EdgeInsets.all(16),
                             children: [
-                              ...cartItems.map((item) {
+                              ...cartItems.asMap().entries.map((entry) {
+                                int idx = entry.key;
+                                CartItem item = entry.value;
+
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 12),
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: MyApp.cardBg,
+                                    color: Colors.white,
                                     borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: MyApp.vibrantViolet.withValues(alpha: 0.25)),
+                                    border: Border.all(
+                                      color: MyApp.slateBorder,
+                                    ),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Color(0x08000000),
+                                        blurRadius: 6,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
                                   ),
-                                  child: Row(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(2),
-                                        decoration: BoxDecoration(
-                                          border: Border.all(color: Colors.greenAccent, width: 1.2),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: const Icon(Icons.circle, color: Colors.greenAccent, size: 8),
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(2),
+                                            decoration: BoxDecoration(
+                                              border: Border.all(
+                                                color: Colors.green,
+                                                width: 1.2,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: const Icon(
+                                              Icons.circle,
+                                              color: Colors.green,
+                                              size: 8,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  item.title,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                    color: MyApp.slate900,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 3),
+                                                Text(
+                                                  '₹${item.unitPrice} each',
+                                                  style: const TextStyle(
+                                                    color: MyApp.slate600,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              color: MyApp.slateBg,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: MyApp.slateBorder,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                InkWell(
+                                                  onTap: () {
+                                                    decrementCartItem(idx);
+                                                    setModalState(() {});
+                                                  },
+                                                  child: const Padding(
+                                                    padding:
+                                                        EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 4,
+                                                        ),
+                                                    child: Icon(
+                                                      Icons.remove,
+                                                      size: 16,
+                                                      color: Colors.redAccent,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '${item.quantity}',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 13,
+                                                    color: MyApp.brightOrange,
+                                                  ),
+                                                ),
+                                                InkWell(
+                                                  onTap: () {
+                                                    incrementCartItem(idx);
+                                                    setModalState(() {});
+                                                  },
+                                                  child: const Padding(
+                                                    padding:
+                                                        EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 4,
+                                                        ),
+                                                    child: Icon(
+                                                      Icons.add,
+                                                      size: 16,
+                                                      color: Colors.green,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 14),
+                                          Text(
+                                            '₹${item.unitPrice * item.quantity}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14.5,
+                                              color: MyApp.brightOrange,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              item.food.name,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
-                                                color: Colors.white,
-                                              ),
+                                      if (item.customizations != null) ...[
+                                        const SizedBox(height: 8),
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: MyApp.orangeLight,
+                                            borderRadius: BorderRadius.circular(
+                                              8,
                                             ),
-                                            const SizedBox(height: 3),
-                                            Text(
-                                              '₹${item.food.rawPrice} each',
-                                              style: const TextStyle(
-                                                color: MyApp.mutedText,
-                                                fontSize: 12,
-                                              ),
+                                            border: Border.all(
+                                              color: MyApp.orangeBorder,
                                             ),
-                                          ],
+                                          ),
+                                          child: Text(
+                                            'Customized: ${item.customizations}',
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              color: MyApp.slate700,
+                                              height: 1.3,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          color: MyApp.surfaceDark,
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(color: MyApp.celebrationGold.withValues(alpha: 0.4)),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            InkWell(
-                                              onTap: () {
-                                                removeFromCart(item.food);
-                                                setModalState(() {});
-                                              },
-                                              child: const Padding(
-                                                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                child: Icon(Icons.remove, size: 16, color: Colors.redAccent),
-                                              ),
-                                            ),
-                                            Text(
-                                              '${item.quantity}',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 13,
-                                                color: MyApp.celebrationGold,
-                                              ),
-                                            ),
-                                            InkWell(
-                                              onTap: () {
-                                                addToCart(item.food);
-                                                setModalState(() {});
-                                              },
-                                              child: const Padding(
-                                                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                child: Icon(Icons.add, size: 16, color: Colors.greenAccent),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 14),
-                                      Text(
-                                        '₹${item.food.rawPrice * item.quantity}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14.5,
-                                          color: MyApp.celebrationGold,
-                                        ),
-                                      ),
+                                      ],
                                     ],
                                   ),
                                 );
@@ -557,12 +1392,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Container(
                                 padding: const EdgeInsets.all(14),
                                 decoration: BoxDecoration(
-                                  color: MyApp.cardBg,
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
                                     color: appliedCoupon != null
-                                        ? Colors.greenAccent
-                                        : MyApp.vibrantViolet.withValues(alpha: 0.3),
+                                        ? Colors.green
+                                        : MyApp.slateBorder,
                                   ),
                                 ),
                                 child: Column(
@@ -572,15 +1407,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       children: [
                                         Icon(
                                           Icons.local_offer_outlined,
-                                          color: appliedCoupon != null ? Colors.greenAccent : MyApp.celebrationGold,
+                                          color: appliedCoupon != null
+                                              ? Colors.green
+                                              : MyApp.brightOrange,
                                           size: 18,
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
-                                          appliedCoupon != null ? 'Promo Code Applied 🎉' : 'Offers & Promo Codes',
+                                          appliedCoupon != null
+                                              ? 'Promo Code Applied 🎉'
+                                              : 'Offers & Promo Codes',
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
-                                            color: appliedCoupon != null ? Colors.greenAccent : MyApp.softGold,
+                                            color: appliedCoupon != null
+                                                ? Colors.green
+                                                : MyApp.slate900,
                                             fontSize: 13.5,
                                           ),
                                         ),
@@ -589,25 +1430,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     const SizedBox(height: 10),
                                     if (appliedCoupon != null)
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
                                         decoration: BoxDecoration(
-                                          color: Colors.green.shade900.withValues(alpha: 0.3),
-                                          borderRadius: BorderRadius.circular(10),
-                                          border: Border.all(color: Colors.greenAccent),
+                                          color: Colors.green.shade50,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.green,
+                                          ),
                                         ),
                                         child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
                                             Text(
                                               '${appliedCoupon!.code} (Saved ₹$discountAmount)',
                                               style: const TextStyle(
                                                 fontWeight: FontWeight.bold,
-                                                color: Colors.greenAccent,
+                                                color: Colors.green,
                                                 fontSize: 13,
                                               ),
                                             ),
                                             IconButton(
-                                              icon: const Icon(Icons.close, color: Colors.redAccent, size: 18),
+                                              icon: const Icon(
+                                                Icons.close,
+                                                color: Colors.redAccent,
+                                                size: 18,
+                                              ),
                                               onPressed: () {
                                                 removeCoupon();
                                                 setModalState(() {});
@@ -623,19 +1476,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                             child: Container(
                                               height: 40,
                                               decoration: BoxDecoration(
-                                                color: MyApp.surfaceDark,
-                                                borderRadius: BorderRadius.circular(10),
-                                                border: Border.all(color: MyApp.vibrantViolet.withValues(alpha: 0.4)),
+                                                color: MyApp.slateBg,
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                border: Border.all(
+                                                  color: MyApp.slateBorder,
+                                                ),
                                               ),
                                               child: TextField(
-                                                controller: couponInputController,
-                                                textCapitalization: TextCapitalization.characters,
-                                                style: const TextStyle(color: Colors.white),
+                                                controller:
+                                                    couponInputController,
+                                                textCapitalization:
+                                                    TextCapitalization
+                                                        .characters,
+                                                style: const TextStyle(
+                                                  color: MyApp.slate900,
+                                                ),
                                                 decoration: const InputDecoration(
-                                                  hintText: 'Enter code (e.g. CELEBRATE50)',
-                                                  hintStyle: TextStyle(fontSize: 12, color: Colors.white38),
+                                                  hintText:
+                                                      'Enter code (e.g. CELEBRATE50)',
+                                                  hintStyle: TextStyle(
+                                                    fontSize: 12,
+                                                    color: MyApp.slate400,
+                                                  ),
                                                   border: InputBorder.none,
-                                                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                                  contentPadding:
+                                                      EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 10,
+                                                      ),
                                                 ),
                                               ),
                                             ),
@@ -643,19 +1512,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           const SizedBox(width: 8),
                                           ElevatedButton(
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: MyApp.celebrationGold,
-                                              foregroundColor: MyApp.midnightBg,
+                                              backgroundColor:
+                                                  MyApp.brightOrange,
+                                              foregroundColor: Colors.white,
                                               shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(10),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
                                               ),
                                             ),
                                             onPressed: () {
-                                              if (couponInputController.text.isNotEmpty) {
-                                                applyCouponCode(couponInputController.text);
+                                              if (couponInputController
+                                                  .text
+                                                  .isNotEmpty) {
+                                                applyCouponCode(
+                                                  couponInputController.text,
+                                                );
                                                 setModalState(() {});
                                               }
                                             },
-                                            child: const Text('APPLY', style: TextStyle(fontWeight: FontWeight.bold)),
+                                            child: const Text(
+                                              'APPLY',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -665,15 +1545,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         runSpacing: 6,
                                         children: availableCoupons.map((c) {
                                           return ActionChip(
-                                            backgroundColor: MyApp.surfaceDark,
-                                            side: BorderSide(color: MyApp.celebrationGold.withValues(alpha: 0.4)),
-                                            avatar: const Icon(Icons.local_offer, size: 12, color: MyApp.celebrationGold),
+                                            backgroundColor: MyApp.orangeLight,
+                                            side: const BorderSide(
+                                              color: MyApp.orangeBorder,
+                                            ),
+                                            avatar: const Icon(
+                                              Icons.local_offer,
+                                              size: 12,
+                                              color: MyApp.brightOrange,
+                                            ),
                                             label: Text(
                                               c.code,
                                               style: const TextStyle(
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.bold,
-                                                color: MyApp.softGold,
+                                                color: MyApp.brightOrange,
                                               ),
                                             ),
                                             onPressed: () {
@@ -693,9 +1579,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   if (cartItems.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: MyApp.surfaceDark,
-                        border: Border(top: BorderSide(color: MyApp.vibrantViolet.withValues(alpha: 0.2))),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        border: Border(
+                          top: BorderSide(color: MyApp.slateBorder),
+                        ),
                       ),
                       child: SafeArea(
                         child: Column(
@@ -703,17 +1591,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Item Total', style: TextStyle(fontSize: 13.5, color: MyApp.lavenderText)),
-                                Text('₹$subtotalCartPrice', style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Colors.white)),
+                                const Text(
+                                  'Item Total',
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    color: MyApp.slate600,
+                                  ),
+                                ),
+                                Text(
+                                  '₹$subtotalCartPrice',
+                                  style: const TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: MyApp.slate900,
+                                  ),
+                                ),
                               ],
                             ),
                             if (appliedCoupon != null) ...[
                               const SizedBox(height: 4),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text('Coupon Discount (${appliedCoupon!.code})', style: const TextStyle(fontSize: 13.5, color: Colors.greenAccent)),
-                                  Text('-₹$discountAmount', style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: Colors.greenAccent)),
+                                  Text(
+                                    'Coupon Discount (${appliedCoupon!.code})',
+                                    style: const TextStyle(
+                                      fontSize: 13.5,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                  Text(
+                                    '-₹$discountAmount',
+                                    style: const TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ],
@@ -721,26 +1636,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             const Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Delivery Partner Fee', style: TextStyle(fontSize: 13.5, color: MyApp.lavenderText)),
-                                Text('FREE', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: Colors.greenAccent)),
+                                Text(
+                                  'Delivery Partner Fee',
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    color: MyApp.slate600,
+                                  ),
+                                ),
+                                Text(
+                                  'FREE',
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green,
+                                  ),
+                                ),
                               ],
                             ),
-                            Divider(height: 18, color: MyApp.vibrantViolet.withValues(alpha: 0.2)),
+                            Divider(height: 18, color: MyApp.slateBorder),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('To Pay', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: MyApp.softGold)),
+                                const Text(
+                                  'To Pay',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                    color: MyApp.slate900,
+                                  ),
+                                ),
                                 Row(
                                   children: [
                                     if (appliedCoupon != null)
                                       Padding(
-                                        padding: const EdgeInsets.only(right: 6),
+                                        padding: const EdgeInsets.only(
+                                          right: 6,
+                                        ),
                                         child: Text(
                                           '₹$subtotalCartPrice',
-                                          style: const TextStyle(fontSize: 14, color: Colors.grey, decoration: TextDecoration.lineThrough),
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey,
+                                            decoration:
+                                                TextDecoration.lineThrough,
+                                          ),
                                         ),
                                       ),
-                                    Text('₹$finalPayablePrice', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: MyApp.celebrationGold)),
+                                    Text(
+                                      '₹$finalPayablePrice',
+                                      style: const TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                        color: MyApp.brightOrange,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ],
@@ -751,42 +1700,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               height: 48,
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: MyApp.celebrationGold,
-                                  foregroundColor: MyApp.midnightBg,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  backgroundColor: MyApp.brightOrange,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
                                 ),
                                 onPressed: () {
+                                  final amountPaid = finalPayablePrice;
+                                  placeCurrentOrder();
                                   Navigator.pop(context);
                                   showDialog(
                                     context: context,
                                     builder: (context) => AlertDialog(
-                                      backgroundColor: MyApp.cardBg,
+                                      backgroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(20),
-                                        side: const BorderSide(color: MyApp.celebrationGold),
+                                        side: const BorderSide(
+                                          color: MyApp.brightOrange,
+                                        ),
                                       ),
                                       title: const Row(
                                         children: [
-                                          Icon(Icons.check_circle, color: Colors.greenAccent, size: 26),
+                                          Icon(
+                                            Icons.check_circle,
+                                            color: Colors.green,
+                                            size: 26,
+                                          ),
                                           SizedBox(width: 8),
-                                          Text('Order Placed!', style: TextStyle(color: MyApp.softGold)),
+                                          Text(
+                                            'Order Placed!',
+                                            style: TextStyle(
+                                              color: MyApp.slate900,
+                                            ),
+                                          ),
                                         ],
                                       ),
                                       content: Text(
-                                        'Your celebration feast of ₹$finalPayablePrice has been placed successfully!\n\nThank you for choosing Cravyy Celebrations.',
-                                        style: const TextStyle(color: MyApp.lavenderText),
+                                        'Your feast of ₹$amountPaid has been placed and is now PREPARING in the kitchen!\n\nCheck the "Orders" page to track your order in real-time.',
+                                        style: const TextStyle(
+                                          color: MyApp.slate700,
+                                        ),
                                       ),
                                       actions: [
                                         ElevatedButton(
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor: MyApp.celebrationGold,
-                                            foregroundColor: MyApp.midnightBg,
+                                            backgroundColor: MyApp.brightOrange,
+                                            foregroundColor: Colors.white,
                                           ),
                                           onPressed: () {
-                                            clearCart();
                                             Navigator.pop(context);
+                                            setState(() {
+                                              selectedNavIndex = 3;
+                                            });
                                           },
-                                          child: const Text('Awesome!', style: TextStyle(fontWeight: FontWeight.bold)),
+                                          child: const Text(
+                                            'Track in Orders',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -794,7 +1767,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 },
                                 child: Text(
                                   'Place Order • ₹$finalPayablePrice',
-                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
@@ -826,18 +1802,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         cartCount: totalCartCount,
         favoriteNames: favoriteItemNames,
         onToggleFavorite: toggleFavorite,
-        onAddToCart: addToCart,
+        onAddToCart: addFoodToCart,
         onOpenCart: openCartSheet,
       ),
-      const OrdersScreen(),
+      CombosScreen(onCustomizeAndAdd: addCustomizedComboToCart),
       OffersScreen(
         onApplyCoupon: (code) {
           applyCouponCode(code);
           openCartSheet();
         },
       ),
-      const CustomersScreen(),
-      const SettingsScreen(),
+      OrdersScreen(orders: userOrders),
+      const CustomerProfileScreen(),
     ];
 
     return Scaffold(
@@ -848,10 +1824,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               padding: const EdgeInsets.all(7),
               decoration: const BoxDecoration(
-                color: MyApp.royalPurple,
+                color: MyApp.brightOrange,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.auto_awesome, color: MyApp.celebrationGold, size: 18),
+              child: const Icon(
+                Icons.auto_awesome,
+                color: Colors.white,
+                size: 18,
+              ),
             ),
             const SizedBox(width: 10),
             Column(
@@ -862,17 +1842,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
-                    color: MyApp.softGold,
+                    color: MyApp.slate900,
                     letterSpacing: -0.2,
                   ),
                 ),
                 Row(
                   children: [
-                    Icon(Icons.location_on, size: 12, color: MyApp.mutedText),
+                    Icon(
+                      Icons.location_on,
+                      size: 12,
+                      color: MyApp.brightOrange,
+                    ),
                     SizedBox(width: 2),
                     Text(
                       'Celebrations Food Hub, 25 mins',
-                      style: TextStyle(fontSize: 11.5, color: MyApp.mutedText),
+                      style: TextStyle(fontSize: 11.5, color: MyApp.slate600),
                     ),
                   ],
                 ),
@@ -880,47 +1864,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: MyApp.softGold),
-            onPressed: () {
-              setState(() {
-                selectedNavIndex = 0;
-              });
-            },
-          ),
-          Stack(
-            alignment: Alignment.topRight,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.shopping_bag_outlined, color: MyApp.softGold),
-                onPressed: openCartSheet,
-              ),
-              if (totalCartCount > 0)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: MyApp.celebrationGold,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      '$totalCartCount',
-                      style: const TextStyle(
-                        color: MyApp.midnightBg,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
+      floatingActionButton: (selectedNavIndex == 0 || selectedNavIndex == 1)
+          ? SizedBox(
+              width: 66,
+              height: 66,
+              child: FloatingActionButton(
+                onPressed: openCartSheet,
+                backgroundColor: MyApp.brightOrange,
+                elevation: 8,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(
+                      Icons.shopping_bag_outlined,
+                      color: Colors.white,
+                      size: 34,
+                    ),
+                    if (totalCartCount > 0)
+                      Positioned(
+                        right: -6,
+                        top: -8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: MyApp.slate900,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.white, width: 2),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            '$totalCartCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            )
+          : null,
       body: Stack(
         children: [
           Row(
@@ -942,78 +1942,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
-          if (totalCartCount > 0 && selectedNavIndex == 0)
-            Positioned(
-              bottom: isMobile ? 12 : 20,
-              left: isMobile ? 16 : 280,
-              right: 16,
-              child: Material(
-                elevation: 10,
-                borderRadius: BorderRadius.circular(16),
-                color: MyApp.surfaceDark,
-                child: InkWell(
-                  onTap: openCartSheet,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: MyApp.celebrationGold, width: 1.2),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '$totalCartCount ITEMS IN CART',
-                              style: const TextStyle(
-                                color: MyApp.celebrationGold,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            Text(
-                              '₹$finalPayablePrice plus taxes',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: const [
-                            Text(
-                              'View Cart',
-                              style: TextStyle(
-                                color: MyApp.celebrationGold,
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(width: 4),
-                            Icon(Icons.arrow_forward_ios, size: 14, color: MyApp.celebrationGold),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
       bottomNavigationBar: isMobile
           ? Container(
-              decoration: BoxDecoration(
-                color: MyApp.surfaceDark,
+              decoration: const BoxDecoration(
+                color: Colors.white,
                 border: Border(
-                  top: BorderSide(color: MyApp.vibrantViolet.withValues(alpha: 0.25), width: 1),
+                  top: BorderSide(color: MyApp.slateBorder, width: 1),
                 ),
               ),
               child: NavigationBar(
@@ -1023,33 +1959,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     selectedNavIndex = index;
                   });
                 },
-                backgroundColor: MyApp.surfaceDark,
+                backgroundColor: Colors.white,
                 elevation: 0,
-                indicatorColor: MyApp.celebrationGold.withValues(alpha: 0.2),
+                indicatorColor: MyApp.orangeLight,
                 destinations: const [
                   NavigationDestination(
-                    icon: Icon(Icons.explore_outlined, color: MyApp.mutedText),
-                    selectedIcon: Icon(Icons.explore, color: MyApp.celebrationGold),
+                    icon: Icon(Icons.explore_outlined, color: MyApp.slate400),
+                    selectedIcon: Icon(
+                      Icons.explore,
+                      color: MyApp.brightOrange,
+                    ),
                     label: 'Explore',
                   ),
                   NavigationDestination(
-                    icon: Icon(Icons.receipt_long_outlined, color: MyApp.mutedText),
-                    selectedIcon: Icon(Icons.receipt_long, color: MyApp.celebrationGold),
-                    label: 'Orders',
+                    icon: Icon(
+                      Icons.lunch_dining_outlined,
+                      color: MyApp.slate400,
+                    ),
+                    selectedIcon: Icon(
+                      Icons.lunch_dining,
+                      color: MyApp.brightOrange,
+                    ),
+                    label: 'Combos',
                   ),
                   NavigationDestination(
-                    icon: Icon(Icons.local_offer_outlined, color: MyApp.mutedText),
-                    selectedIcon: Icon(Icons.local_offer, color: MyApp.celebrationGold),
+                    icon: Icon(
+                      Icons.local_offer_outlined,
+                      color: MyApp.slate400,
+                    ),
+                    selectedIcon: Icon(
+                      Icons.local_offer,
+                      color: MyApp.brightOrange,
+                    ),
                     label: 'Offers',
                   ),
                   NavigationDestination(
-                    icon: Icon(Icons.favorite_outline, color: MyApp.mutedText),
-                    selectedIcon: Icon(Icons.favorite, color: MyApp.celebrationGold),
-                    label: 'Loyalty',
+                    icon: Icon(
+                      Icons.receipt_long_outlined,
+                      color: MyApp.slate400,
+                    ),
+                    selectedIcon: Icon(
+                      Icons.receipt_long,
+                      color: MyApp.brightOrange,
+                    ),
+                    label: 'Orders',
                   ),
                   NavigationDestination(
-                    icon: Icon(Icons.person_outline, color: MyApp.mutedText),
-                    selectedIcon: Icon(Icons.person, color: MyApp.celebrationGold),
+                    icon: Icon(Icons.person_outline, color: MyApp.slate400),
+                    selectedIcon: Icon(Icons.person, color: MyApp.brightOrange),
                     label: 'Profile',
                   ),
                 ],
@@ -1076,11 +2033,9 @@ class SideMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: MyApp.surfaceDark,
-        border: Border(
-          right: BorderSide(color: MyApp.vibrantViolet.withValues(alpha: 0.25), width: 1),
-        ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(right: BorderSide(color: MyApp.slateBorder, width: 1)),
       ),
       child: Column(
         children: [
@@ -1089,12 +2044,12 @@ class SideMenu extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [MyApp.royalPurple, MyApp.vibrantViolet],
+                colors: [Color(0xFFFF5E00), Color(0xFFFF8533)],
               ),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: MyApp.celebrationGold.withValues(alpha: 0.2),
+                  color: MyApp.brightOrange.withValues(alpha: 0.3),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -1103,7 +2058,7 @@ class SideMenu extends StatelessWidget {
             child: const Icon(
               Icons.restaurant_menu,
               size: 30,
-              color: MyApp.celebrationGold,
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 10),
@@ -1112,17 +2067,42 @@ class SideMenu extends StatelessWidget {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: MyApp.softGold,
+              color: MyApp.slate900,
             ),
           ),
           const SizedBox(height: 20),
-          Divider(height: 1, color: MyApp.vibrantViolet.withValues(alpha: 0.2)),
+          Divider(height: 1, color: MyApp.slateBorder),
           const SizedBox(height: 10),
-          MenuItem(icon: Icons.explore_outlined, title: 'Explore', isSelected: selectedIndex == 0, onTap: () => onSelect(0)),
-          MenuItem(icon: Icons.receipt_long_outlined, title: 'Orders', isSelected: selectedIndex == 1, onTap: () => onSelect(1)),
-          MenuItem(icon: Icons.local_offer_outlined, title: 'Offers', isSelected: selectedIndex == 2, onTap: () => onSelect(2)),
-          MenuItem(icon: Icons.favorite_outline, title: 'Customers', isSelected: selectedIndex == 3, onTap: () => onSelect(3)),
-          MenuItem(icon: Icons.settings_outlined, title: 'Settings', isSelected: selectedIndex == 4, onTap: () => onSelect(4)),
+          MenuItem(
+            icon: Icons.explore_outlined,
+            title: 'Explore',
+            isSelected: selectedIndex == 0,
+            onTap: () => onSelect(0),
+          ),
+          MenuItem(
+            icon: Icons.lunch_dining_outlined,
+            title: 'Combos',
+            isSelected: selectedIndex == 1,
+            onTap: () => onSelect(1),
+          ),
+          MenuItem(
+            icon: Icons.local_offer_outlined,
+            title: 'Offers',
+            isSelected: selectedIndex == 2,
+            onTap: () => onSelect(2),
+          ),
+          MenuItem(
+            icon: Icons.receipt_long_outlined,
+            title: 'Orders',
+            isSelected: selectedIndex == 3,
+            onTap: () => onSelect(3),
+          ),
+          MenuItem(
+            icon: Icons.person_outline,
+            title: 'Profile',
+            isSelected: selectedIndex == 4,
+            onTap: () => onSelect(4),
+          ),
         ],
       ),
     );
@@ -1148,16 +2128,16 @@ class MenuItem extends StatelessWidget {
     return ListTile(
       leading: Icon(
         icon,
-        color: isSelected ? MyApp.celebrationGold : MyApp.mutedText,
+        color: isSelected ? MyApp.brightOrange : MyApp.slate400,
       ),
       title: Text(
         title,
         style: TextStyle(
           fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-          color: isSelected ? MyApp.softGold : MyApp.lavenderText,
+          color: isSelected ? MyApp.brightOrange : MyApp.slate700,
         ),
       ),
-      tileColor: isSelected ? MyApp.celebrationGold.withValues(alpha: 0.12) : null,
+      tileColor: isSelected ? MyApp.orangeLight : null,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       onTap: onTap,
@@ -1166,7 +2146,7 @@ class MenuItem extends StatelessWidget {
 }
 
 // ============================================================================
-// PAGE 0: LUXURY CADBURY DASHBOARD EXPLORE CONTENT
+// PAGE 0: DASHBOARD EXPLORE
 // ============================================================================
 class DashboardContent extends StatefulWidget {
   final bool isMobile;
@@ -1217,6 +2197,9 @@ class _DashboardContentState extends State<DashboardContent> {
       price: '₹199',
       rawPrice: 199,
       icon: Icons.local_pizza,
+      assetPath: 'assets/images/pizza_margherita.jpg',
+      imageUrl:
+          'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&auto=format&fit=crop&q=80',
       rating: 4.8,
       reviewCount: 340,
       deliveryTime: '20-25 mins',
@@ -1229,6 +2212,9 @@ class _DashboardContentState extends State<DashboardContent> {
       price: '₹149',
       rawPrice: 149,
       icon: Icons.lunch_dining,
+      assetPath: 'assets/images/veggie_burger.jpg',
+      imageUrl:
+          'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&auto=format&fit=crop&q=80',
       rating: 4.5,
       reviewCount: 180,
       deliveryTime: '15-20 mins',
@@ -1241,6 +2227,9 @@ class _DashboardContentState extends State<DashboardContent> {
       price: '₹229',
       rawPrice: 229,
       icon: Icons.ramen_dining,
+      assetPath: 'assets/images/creamy_pasta.jpg',
+      imageUrl:
+          'https://images.unsplash.com/photo-1621996346565-e3d5d6281691?w=500&auto=format&fit=crop&q=80',
       rating: 4.7,
       reviewCount: 220,
       deliveryTime: '25-30 mins',
@@ -1253,6 +2242,9 @@ class _DashboardContentState extends State<DashboardContent> {
       price: '₹129',
       rawPrice: 129,
       icon: Icons.breakfast_dining,
+      assetPath: 'assets/images/club_sandwich.jpg',
+      imageUrl:
+          'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=500&auto=format&fit=crop&q=80',
       rating: 4.4,
       reviewCount: 95,
       deliveryTime: '15-20 mins',
@@ -1265,6 +2257,9 @@ class _DashboardContentState extends State<DashboardContent> {
       price: '₹299',
       rawPrice: 299,
       icon: Icons.rice_bowl,
+      assetPath: 'assets/images/dum_biryani.jpg',
+      imageUrl:
+          'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=500&auto=format&fit=crop&q=80',
       rating: 4.9,
       reviewCount: 510,
       deliveryTime: '30-35 mins',
@@ -1277,6 +2272,9 @@ class _DashboardContentState extends State<DashboardContent> {
       price: '₹179',
       rawPrice: 179,
       icon: Icons.ramen_dining,
+      assetPath: 'assets/images/hakka_noodles.jpg',
+      imageUrl:
+          'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=500&auto=format&fit=crop&q=80',
       rating: 4.6,
       reviewCount: 140,
       deliveryTime: '20-25 mins',
@@ -1289,6 +2287,9 @@ class _DashboardContentState extends State<DashboardContent> {
       price: '₹259',
       rawPrice: 259,
       icon: Icons.outdoor_grill,
+      assetPath: 'assets/images/paneer_tikka.jpg',
+      imageUrl:
+          'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=500&auto=format&fit=crop&q=80',
       rating: 4.9,
       reviewCount: 420,
       deliveryTime: '20-25 mins',
@@ -1301,6 +2302,9 @@ class _DashboardContentState extends State<DashboardContent> {
       price: '₹139',
       rawPrice: 139,
       icon: Icons.cake,
+      assetPath: 'assets/images/choco_lava.jpg',
+      imageUrl:
+          'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=500&auto=format&fit=crop&q=80',
       rating: 4.9,
       reviewCount: 680,
       deliveryTime: '15-20 mins',
@@ -1313,6 +2317,9 @@ class _DashboardContentState extends State<DashboardContent> {
       price: '₹399',
       rawPrice: 399,
       icon: Icons.local_pizza,
+      assetPath: 'assets/images/cheese_pizza.jpg',
+      imageUrl:
+          'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=500&auto=format&fit=crop&q=80',
       rating: 4.9,
       reviewCount: 290,
       deliveryTime: '25-30 mins',
@@ -1320,6 +2327,29 @@ class _DashboardContentState extends State<DashboardContent> {
       isVeg: true,
     ),
   ];
+
+  IconData getCategoryIcon(String cat) {
+    switch (cat) {
+      case 'All':
+        return Icons.restaurant_menu;
+      case 'Pizza':
+        return Icons.local_pizza;
+      case 'Burgers':
+        return Icons.lunch_dining;
+      case 'Pasta':
+        return Icons.ramen_dining;
+      case 'Biryani':
+        return Icons.rice_bowl;
+      case 'Starters':
+        return Icons.outdoor_grill;
+      case 'Chinese':
+        return Icons.soup_kitchen;
+      case 'Desserts':
+        return Icons.cake;
+      default:
+        return Icons.fastfood;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1342,22 +2372,27 @@ class _DashboardContentState extends State<DashboardContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. VELVET SEARCH BAR
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
             decoration: BoxDecoration(
-              color: MyApp.cardBg,
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: MyApp.vibrantViolet.withValues(alpha: 0.35)),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: MyApp.slateBorder),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x06000000),
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
+                ),
+              ],
             ),
             child: Row(
               children: [
-                const Icon(Icons.search, color: MyApp.celebrationGold, size: 22),
+                const Icon(Icons.search, color: MyApp.brightOrange, size: 22),
                 const SizedBox(width: 10),
                 Expanded(
                   child: TextField(
                     controller: _searchController,
-                    style: const TextStyle(color: Colors.white),
                     onChanged: (val) {
                       setState(() {
                         searchQuery = val;
@@ -1365,7 +2400,10 @@ class _DashboardContentState extends State<DashboardContent> {
                     },
                     decoration: const InputDecoration(
                       hintText: 'Search pizza, biryani, choco cake...',
-                      hintStyle: TextStyle(fontSize: 13.5, color: MyApp.mutedText),
+                      hintStyle: TextStyle(
+                        fontSize: 13.5,
+                        color: MyApp.slate400,
+                      ),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(vertical: 12),
                     ),
@@ -1373,7 +2411,11 @@ class _DashboardContentState extends State<DashboardContent> {
                 ),
                 if (searchQuery.isNotEmpty)
                   IconButton(
-                    icon: const Icon(Icons.clear, size: 18, color: MyApp.mutedText),
+                    icon: const Icon(
+                      Icons.clear,
+                      size: 18,
+                      color: MyApp.slate400,
+                    ),
                     onPressed: () {
                       _searchController.clear();
                       setState(() {
@@ -1384,85 +2426,80 @@ class _DashboardContentState extends State<DashboardContent> {
                 else
                   Container(
                     padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: MyApp.royalPurple,
+                    decoration: const BoxDecoration(
+                      color: MyApp.orangeLight,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.tune, size: 16, color: MyApp.celebrationGold),
+                    child: const Icon(
+                      Icons.tune,
+                      size: 16,
+                      color: MyApp.brightOrange,
+                    ),
                   ),
               ],
             ),
           ),
-
-          const SizedBox(height: 18),
-
-          // 2. FESTIVE CADBURY PROMO BANNER
+          const SizedBox(height: 16),
+          // Festive Promo Banner
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [MyApp.royalPurple, Color(0xFF7E22CE)],
+                colors: [MyApp.brightOrange, Color(0xFFFF8C38)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: MyApp.celebrationGold.withValues(alpha: 0.5)),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: MyApp.brightOrange.withValues(alpha: 0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
             child: Row(
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: MyApp.celebrationGold,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text(
-                          'FESTIVE FEAST OFFER',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.bold,
-                            color: MyApp.midnightBg,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'FLAT 50% OFF Up to ₹250',
+                    children: const [
+                      Text(
+                        'FESTIVE FEAST OFFER 🎉',
                         style: TextStyle(
-                          fontSize: 18,
+                          color: Colors.white,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.bold,
-                          color: MyApp.softGold,
+                          letterSpacing: 1.0,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Use code CELEBRATE50 at checkout',
-                        style: TextStyle(color: MyApp.lavenderText, fontSize: 12),
+                      SizedBox(height: 4),
+                      Text(
+                        'Flat ₹50 OFF + Free Delivery',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Use code CELEBRATE50 on checkout',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.card_giftcard,
-                  size: 48,
-                  color: MyApp.celebrationGold,
-                ),
+                const Icon(Icons.card_giftcard, size: 48, color: Colors.white),
               ],
             ),
           ),
-
           const SizedBox(height: 20),
-
-          // 3. CATEGORY PILLS
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -1471,20 +2508,27 @@ class _DashboardContentState extends State<DashboardContent> {
                 return Padding(
                   padding: const EdgeInsets.only(right: 10),
                   child: FilterChip(
+                    avatar: Icon(
+                      getCategoryIcon(cat),
+                      size: 16,
+                      color: isSelected ? Colors.white : MyApp.brightOrange,
+                    ),
                     label: Text(cat),
                     selected: isSelected,
-                    selectedColor: MyApp.celebrationGold,
+                    selectedColor: MyApp.brightOrange,
                     labelStyle: TextStyle(
-                      color: isSelected ? MyApp.midnightBg : MyApp.lavenderText,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      color: isSelected ? Colors.white : MyApp.slate700,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.w500,
                       fontSize: 13,
                     ),
-                    checkmarkColor: MyApp.midnightBg,
-                    backgroundColor: MyApp.cardBg,
+                    checkmarkColor: Colors.white,
+                    backgroundColor: Colors.white,
                     side: BorderSide(
                       color: isSelected
-                          ? MyApp.celebrationGold
-                          : MyApp.vibrantViolet.withValues(alpha: 0.3),
+                          ? MyApp.brightOrange
+                          : MyApp.slateBorder,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
@@ -1499,52 +2543,7 @@ class _DashboardContentState extends State<DashboardContent> {
               }).toList(),
             ),
           ),
-
-          const SizedBox(height: 22),
-
-          // 4. METRIC STATS
-          const Text(
-            'Live Kitchen Highlights',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: MyApp.softGold,
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          Row(
-            children: const [
-              Expanded(
-                child: QuickStatPill(
-                  icon: Icons.trending_up,
-                  title: '120+ Orders',
-                  subtitle: 'Served Today',
-                ),
-              ),
-              SizedBox(width: 10),
-              Expanded(
-                child: QuickStatPill(
-                  icon: Icons.timer,
-                  title: '18 Pending',
-                  subtitle: 'Kitchen Live',
-                  isGold: true,
-                ),
-              ),
-              SizedBox(width: 10),
-              Expanded(
-                child: QuickStatPill(
-                  icon: Icons.star,
-                  title: '4.8 ★ Rating',
-                  subtitle: '500+ Reviews',
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 26),
-
-          // 5. FOOD GRID
+          const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1555,44 +2554,46 @@ class _DashboardContentState extends State<DashboardContent> {
                 style: const TextStyle(
                   fontSize: 19,
                   fontWeight: FontWeight.bold,
-                  color: MyApp.softGold,
+                  color: MyApp.slate900,
                 ),
               ),
               Text(
                 '${filteredFoods.length} items',
-                style: const TextStyle(color: MyApp.mutedText, fontSize: 12.5),
+                style: const TextStyle(color: MyApp.slate600, fontSize: 12.5),
               ),
             ],
           ),
-
           const SizedBox(height: 14),
-
           if (filteredFoods.isEmpty)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(40),
               decoration: BoxDecoration(
-                color: MyApp.cardBg,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: MyApp.vibrantViolet.withValues(alpha: 0.3)),
+                border: Border.all(color: MyApp.slateBorder),
               ),
               child: Column(
-                children: [
-                  const Icon(
+                children: const [
+                  Icon(
                     Icons.search_off_rounded,
                     size: 55,
-                    color: MyApp.mutedText,
+                    color: MyApp.slate400,
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'No Food Found',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: MyApp.softGold),
-                  ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 12),
                   Text(
-                    'No food matching "$searchQuery" in $selectedCategory. Try another search!',
+                    'No Food Found',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: MyApp.slate900,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Try another category or search term!',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: MyApp.lavenderText, fontSize: 13),
+                    style: TextStyle(color: MyApp.slate600, fontSize: 13),
                   ),
                 ],
               ),
@@ -1614,12 +2615,8 @@ class _DashboardContentState extends State<DashboardContent> {
               ),
               itemBuilder: (context, index) {
                 final food = filteredFoods[index];
-                final isFav = widget.favoriteNames.contains(food.name);
-
                 return VelvetFoodCard(
                   food: food,
-                  isFavorite: isFav,
-                  onToggleFavorite: () => widget.onToggleFavorite(food.name),
                   onAddToCart: () => widget.onAddToCart(food),
                 );
               },
@@ -1631,477 +2628,734 @@ class _DashboardContentState extends State<DashboardContent> {
 }
 
 // ============================================================================
-// STAT PILL
+// PAGE 1: INTERACTIVE COMBOS & MEAL CUSTOMIZER SCREEN
 // ============================================================================
-class QuickStatPill extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool isGold;
+class CombosScreen extends StatelessWidget {
+  final Function({
+    required ComboItem combo,
+    required CustomOption selectedMain,
+    required CustomOption selectedSide,
+    required CustomOption selectedBev,
+    required List<CustomOption> selectedAddons,
+    required int totalPrice,
+  })
+  onCustomizeAndAdd;
 
-  const QuickStatPill({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.isGold = false,
-  });
+  const CombosScreen({super.key, required this.onCustomizeAndAdd});
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: MyApp.cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isGold
-              ? MyApp.celebrationGold
-              : MyApp.vibrantViolet.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  final List<ComboItem> combos = const [
+    ComboItem(
+      id: 'COMBO-1',
+      name: 'Festive Burger Feast Combo',
+      description:
+          'Choice of Gourmet Burger + Crispy Side Fries + Refreshing Drink + Sweet Choco Lava Cake',
+      basePrice: 299,
+      icon: Icons.lunch_dining,
+      assetPath: 'assets/images/combo_burger.jpg',
+      imageUrl:
+          'https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=500&auto=format&fit=crop&q=80',
+      rating: 4.9,
+      mainOptions: [
+        CustomOption(name: 'Veggie Deluxe Burger', extraPrice: 0),
+        CustomOption(name: 'Crispy Paneer Supreme Burger', extraPrice: 30),
+        CustomOption(name: 'Double Cheese Loaded Burger', extraPrice: 45),
+      ],
+      sideOptions: [
+        CustomOption(name: 'Classic Salted Fries', extraPrice: 0),
+        CustomOption(name: 'Spicy Peri-Peri Fries', extraPrice: 20),
+        CustomOption(name: 'Cheesy Melt Loaded Fries', extraPrice: 40),
+        CustomOption(name: 'Crispy Onion Rings (4 pcs)', extraPrice: 25),
+      ],
+      beverageOptions: [
+        CustomOption(name: 'Classic Coca-Cola (300ml)', extraPrice: 0),
+        CustomOption(name: 'Chilled Pepsi Zero', extraPrice: 0),
+        CustomOption(name: 'Fanta Orange Spark', extraPrice: 0),
+        CustomOption(name: 'Thick Cold Coffee', extraPrice: 35),
+        CustomOption(name: 'Fresh Mint Mojito', extraPrice: 40),
+      ],
+      addonOptions: [
+        CustomOption(name: 'Warm Choco Lava Cake', extraPrice: 60),
+        CustomOption(name: 'Extra Cheese Dip', extraPrice: 25),
+        CustomOption(name: 'Peri-Peri Seasoning Dip', extraPrice: 15),
+      ],
+    ),
+    ComboItem(
+      id: 'COMBO-2',
+      name: 'Royal Pizza Party Combo',
+      description:
+          'Fresh 8-Inch Pan Pizza + Stuffed Garlic Bread + Beverage + Creamy Cheese Dip',
+      basePrice: 389,
+      icon: Icons.local_pizza,
+      assetPath: 'assets/images/combo_pizza.jpg',
+      imageUrl:
+          'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=500&auto=format&fit=crop&q=80',
+      rating: 4.8,
+      mainOptions: [
+        CustomOption(name: 'Margherita Cheese Burst (8")', extraPrice: 0),
+        CustomOption(name: 'Tandoori Paneer Tikka Pizza (8")', extraPrice: 40),
+        CustomOption(name: 'Farmhouse Veggie Supreme (8")', extraPrice: 35),
+      ],
+      sideOptions: [
+        CustomOption(name: 'Garlic Breadsticks (4 pcs)', extraPrice: 0),
+        CustomOption(name: 'Cheese Stuffed Garlic Bread', extraPrice: 35),
+        CustomOption(name: 'Peri-Peri Potato Wedges', extraPrice: 25),
+      ],
+      beverageOptions: [
+        CustomOption(name: 'Classic Coca-Cola', extraPrice: 0),
+        CustomOption(name: 'Fanta Fizz', extraPrice: 0),
+        CustomOption(name: 'Cold Coffee with Ice Cream', extraPrice: 40),
+        CustomOption(name: 'Iced Lemon Tea', extraPrice: 25),
+      ],
+      addonOptions: [
+        CustomOption(name: 'Jalapeno Cheesy Dip', extraPrice: 25),
+        CustomOption(name: 'Cadbury Celebrations Mini Box', extraPrice: 80),
+      ],
+    ),
+    ComboItem(
+      id: 'COMBO-3',
+      name: 'Hyderabadi Biryani Royal Thali',
+      description:
+          'Aromatic Dum Biryani + Veg Starter + Raita & Salan + Cold Beverage + Gulab Jamun',
+      basePrice: 349,
+      icon: Icons.rice_bowl,
+      assetPath: 'assets/images/combo_biryani.jpg',
+      imageUrl:
+          'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=500&auto=format&fit=crop&q=80',
+      rating: 4.9,
+      mainOptions: [
+        CustomOption(name: 'Special Veg Dum Biryani', extraPrice: 0),
+        CustomOption(name: 'Hyderabadi Paneer Biryani', extraPrice: 30),
+      ],
+      sideOptions: [
+        CustomOption(name: 'Tandoori Paneer Tikka (3 pcs)', extraPrice: 0),
+        CustomOption(name: 'Crispy Corn & Pepper Salt', extraPrice: 20),
+        CustomOption(name: 'Hara Bhara Kebab (4 pcs)', extraPrice: 25),
+      ],
+      beverageOptions: [
+        CustomOption(name: 'Masala Spiced Chaas (Buttermilk)', extraPrice: 0),
+        CustomOption(name: 'Classic Thums Up / Coke', extraPrice: 0),
+        CustomOption(name: 'Sweet Mango Lassi', extraPrice: 30),
+      ],
+      addonOptions: [
+        CustomOption(name: 'Warm Gulab Jamun (2 pcs)', extraPrice: 35),
+        CustomOption(name: 'Extra Boondi Raita', extraPrice: 20),
+      ],
+    ),
+    ComboItem(
+      id: 'COMBO-4',
+      name: 'Sweet Tooth Celebration Box',
+      description:
+          'Choco Lava Cake + Belgian Dark Waffle + Cold Beverage + Nutty Brownie',
+      basePrice: 259,
+      icon: Icons.cake,
+      assetPath: 'assets/images/combo_sweet.jpg',
+      imageUrl:
+          'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&auto=format&fit=crop&q=80',
+      rating: 4.9,
+      mainOptions: [
+        CustomOption(name: 'Molten Choco Lava Cake', extraPrice: 0),
+        CustomOption(name: 'Warm Cadbury Silk Fudge Brownie', extraPrice: 20),
+      ],
+      sideOptions: [
+        CustomOption(name: 'Belgian Chocolate Waffle', extraPrice: 0),
+        CustomOption(name: 'Nutella Stuffed Donut', extraPrice: 15),
+      ],
+      beverageOptions: [
+        CustomOption(name: 'Thick Chocolate Milkshake', extraPrice: 0),
+        CustomOption(name: 'Hazelnut Cold Coffee', extraPrice: 25),
+        CustomOption(name: 'Hot Cadbury Hot Chocolate', extraPrice: 30),
+      ],
+      addonOptions: [
+        CustomOption(name: 'Vanilla Ice Cream Scoop', extraPrice: 30),
+        CustomOption(name: 'Sprinkles & Caramel Drizzle', extraPrice: 15),
+      ],
+    ),
+  ];
+
+  void _openCustomizerModal(BuildContext context, ComboItem combo) {
+    CustomOption selectedMain = combo.mainOptions.first;
+    CustomOption selectedSide = combo.sideOptions.first;
+    CustomOption selectedBev = combo.beverageOptions.first;
+    List<CustomOption> selectedAddons = [];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setCustomState) {
+            int currentTotalPrice =
+                combo.basePrice +
+                selectedMain.extraPrice +
+                selectedSide.extraPrice +
+                selectedBev.extraPrice +
+                selectedAddons.fold(0, (sum, a) => sum + a.extraPrice);
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.85,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 20,
+                    offset: Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: MyApp.orangeLight,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: MyApp.orangeBorder),
+                              ),
+                              child: Icon(
+                                combo.icon,
+                                color: MyApp.brightOrange,
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  combo.name,
+                                  style: const TextStyle(
+                                    fontSize: 16.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: MyApp.slate900,
+                                  ),
+                                ),
+                                const Text(
+                                  'Customize Your Meal • Swap Sides & Drinks',
+                                  style: TextStyle(
+                                    color: MyApp.slate600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: MyApp.slate900),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(height: 1, color: MyApp.slateBorder),
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.all(18),
+                      children: [
+                        _buildSectionHeader(
+                          '1. Choose Main Entrée',
+                          'Required • Choose 1',
+                        ),
+                        ...combo.mainOptions.map((opt) {
+                          bool isSel = selectedMain.name == opt.name;
+                          return _buildRadioOptionTile(
+                            title: opt.name,
+                            extraPrice: opt.extraPrice,
+                            isSelected: isSel,
+                            onTap: () {
+                              setCustomState(() {
+                                selectedMain = opt;
+                              });
+                            },
+                          );
+                        }),
+                        const SizedBox(height: 18),
+                        _buildSectionHeader(
+                          '2. Choose Side / Swap Fries',
+                          'Required • Swap Any Side',
+                        ),
+                        ...combo.sideOptions.map((opt) {
+                          bool isSel = selectedSide.name == opt.name;
+                          return _buildRadioOptionTile(
+                            title: opt.name,
+                            extraPrice: opt.extraPrice,
+                            isSelected: isSel,
+                            onTap: () {
+                              setCustomState(() {
+                                selectedSide = opt;
+                              });
+                            },
+                          );
+                        }),
+                        const SizedBox(height: 18),
+                        _buildSectionHeader(
+                          '3. Choose Beverage / Swap Drink',
+                          'Required • Swap Beverage',
+                        ),
+                        ...combo.beverageOptions.map((opt) {
+                          bool isSel = selectedBev.name == opt.name;
+                          return _buildRadioOptionTile(
+                            title: opt.name,
+                            extraPrice: opt.extraPrice,
+                            isSelected: isSel,
+                            onTap: () {
+                              setCustomState(() {
+                                selectedBev = opt;
+                              });
+                            },
+                          );
+                        }),
+                        if (combo.addonOptions.isNotEmpty) ...[
+                          const SizedBox(height: 18),
+                          _buildSectionHeader(
+                            '4. Sweet Dips & Celebration Add-ons',
+                            'Optional',
+                          ),
+                          ...combo.addonOptions.map((opt) {
+                            bool isSel = selectedAddons.any(
+                              (a) => a.name == opt.name,
+                            );
+                            return _buildCheckboxOptionTile(
+                              title: opt.name,
+                              extraPrice: opt.extraPrice,
+                              isSelected: isSel,
+                              onTap: () {
+                                setCustomState(() {
+                                  if (isSel) {
+                                    selectedAddons.removeWhere(
+                                      (a) => a.name == opt.name,
+                                    );
+                                  } else {
+                                    selectedAddons.add(opt);
+                                  }
+                                });
+                              },
+                            );
+                          }),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      border: Border(top: BorderSide(color: MyApp.slateBorder)),
+                    ),
+                    child: SafeArea(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'Customized Total',
+                                style: TextStyle(
+                                  color: MyApp.slate600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                '₹$currentTotalPrice',
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: MyApp.brightOrange,
+                                ),
+                              ),
+                            ],
+                          ),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: MyApp.brightOrange,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 22,
+                                vertical: 13,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              onCustomizeAndAdd(
+                                combo: combo,
+                                selectedMain: selectedMain,
+                                selectedSide: selectedSide,
+                                selectedBev: selectedBev,
+                                selectedAddons: selectedAddons,
+                                totalPrice: currentTotalPrice,
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.shopping_bag_outlined,
+                              color: Colors.white,
+                            ),
+                            label: const Text(
+                              'Add Combo to Cart',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSectionHeader(String title, String subtitle) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10, top: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(
-            icon,
-            size: 18,
-            color: isGold ? MyApp.celebrationGold : MyApp.vibrantViolet,
-          ),
-          const SizedBox(height: 6),
           Text(
             title,
-            style: TextStyle(
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 13,
-              color: isGold ? MyApp.softGold : Colors.white,
+              fontSize: 14.5,
+              color: MyApp.slate900,
             ),
           ),
           Text(
             subtitle,
-            style: const TextStyle(fontSize: 11, color: MyApp.mutedText),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// LUXURY VELVET PURPLE & GOLD FOOD CARD
-// ============================================================================
-class VelvetFoodCard extends StatelessWidget {
-  final FoodItem food;
-  final bool isFavorite;
-  final VoidCallback onToggleFavorite;
-  final VoidCallback onAddToCart;
-
-  const VelvetFoodCard({
-    super.key,
-    required this.food,
-    required this.isFavorite,
-    required this.onToggleFavorite,
-    required this.onAddToCart,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: MyApp.cardBg,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: MyApp.vibrantViolet.withValues(alpha: 0.35)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Top Row: Rating Badge (Top Left) & Heart Button (Top Right)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: MyApp.midnightBg,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: MyApp.celebrationGold.withValues(alpha: 0.5)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${food.rating}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: MyApp.celebrationGold,
-                      ),
-                    ),
-                    const SizedBox(width: 2),
-                    const Icon(Icons.star, size: 10, color: MyApp.celebrationGold),
-                  ],
-                ),
-              ),
-              InkWell(
-                onTap: onToggleFavorite,
-                borderRadius: BorderRadius.circular(20),
-                child: Padding(
-                  padding: const EdgeInsets.all(2),
-                  child: Icon(
-                    isFavorite ? Icons.favorite : Icons.favorite_border,
-                    size: 18,
-                    color: isFavorite ? Colors.redAccent : MyApp.mutedText,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // Centered Icon inside glowing velvet gradient
-          Expanded(
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    colors: [
-                      MyApp.royalPurple.withValues(alpha: 0.9),
-                      MyApp.surfaceDark,
-                    ],
-                  ),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: MyApp.celebrationGold.withValues(alpha: 0.3)),
-                ),
-                child: Icon(food.icon, size: 40, color: MyApp.celebrationGold),
-              ),
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: MyApp.brightOrange,
+              fontWeight: FontWeight.w600,
             ),
           ),
-
-          const SizedBox(height: 6),
-
-          // Food Name & Veg Indicator
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(1.5),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.greenAccent, width: 1.2),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: const Icon(Icons.circle, color: Colors.greenAccent, size: 6),
-              ),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  food.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 2),
-
-          Text(
-            food.deliveryTime,
-            style: const TextStyle(color: MyApp.mutedText, fontSize: 11.5),
-          ),
-
-          const SizedBox(height: 8),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                food.price,
-                style: const TextStyle(
-                  color: MyApp.softGold,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                ),
-              ),
-              InkWell(
-                onTap: onAddToCart,
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: MyApp.celebrationGold,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    '+ ADD',
-                    style: TextStyle(
-                      color: MyApp.midnightBg,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
-}
 
-// ============================================================================
-// PAGE 1: ORDERS MANAGEMENT SCREEN
-// ============================================================================
-class OrdersScreen extends StatefulWidget {
-  const OrdersScreen({super.key});
+  Widget _buildRadioOptionTile({
+    required String title,
+    required int extraPrice,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isSelected ? MyApp.orangeLight : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSelected ? MyApp.brightOrange : MyApp.slateBorder,
+          width: isSelected ? 1.5 : 1,
+        ),
+      ),
+      child: ListTile(
+        onTap: onTap,
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        leading: Icon(
+          isSelected
+              ? Icons.radio_button_checked
+              : Icons.radio_button_unchecked,
+          color: isSelected ? MyApp.brightOrange : MyApp.slate400,
+          size: 20,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? MyApp.slate900 : MyApp.slate700,
+            fontSize: 13.5,
+          ),
+        ),
+        trailing: extraPrice > 0
+            ? Text(
+                '+₹$extraPrice',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: MyApp.brightOrange,
+                  fontSize: 13,
+                ),
+              )
+            : const Text(
+                'FREE',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                  fontSize: 12,
+                ),
+              ),
+      ),
+    );
+  }
 
-  @override
-  State<OrdersScreen> createState() => _OrdersScreenState();
-}
-
-class _OrdersScreenState extends State<OrdersScreen> {
-  String selectedFilter = 'All';
-
-  final List<OrderItem> allOrders = const [
-    OrderItem(
-      id: '#1001',
-      food: 'Pizza Margherita + Coke',
-      status: 'Delivered',
-      time: '10:30 AM',
-      amount: 239,
-    ),
-    OrderItem(
-      id: '#1002',
-      food: 'Veggie Burger + Fries',
-      status: 'Preparing',
-      time: '11:15 AM',
-      amount: 199,
-    ),
-    OrderItem(
-      id: '#1003',
-      food: 'White Sauce Pasta + Garlic Bread',
-      status: 'Delivered',
-      time: '12:00 PM',
-      amount: 279,
-    ),
-    OrderItem(
-      id: '#1004',
-      food: 'Hyderabadi Biryani + Raita',
-      status: 'Cancelled',
-      time: '12:45 PM',
-      amount: 349,
-    ),
-    OrderItem(
-      id: '#1005',
-      food: 'Choco Lava Cake + Cold Coffee',
-      status: 'On The Way',
-      time: '01:10 PM',
-      amount: 219,
-    ),
-    OrderItem(
-      id: '#1006',
-      food: 'Tandoori Paneer Tikka Platter',
-      status: 'Pending',
-      time: '01:25 PM',
-      amount: 289,
-    ),
-    OrderItem(
-      id: '#1007',
-      food: 'Grilled Club Sandwich + Lemonade',
-      status: 'Preparing',
-      time: '01:40 PM',
-      amount: 169,
-    ),
-    OrderItem(
-      id: '#1008',
-      food: 'Extra Cheese Tandoori Pizza',
-      status: 'Delivered',
-      time: '02:00 PM',
-      amount: 419,
-    ),
-  ];
-
-  Color getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'delivered':
-        return Colors.greenAccent;
-      case 'preparing':
-        return Colors.orangeAccent;
-      case 'cancelled':
-        return Colors.redAccent;
-      case 'on the way':
-        return MyApp.vibrantViolet;
-      case 'pending':
-        return MyApp.celebrationGold;
-      default:
-        return Colors.grey;
-    }
+  Widget _buildCheckboxOptionTile({
+    required String title,
+    required int extraPrice,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isSelected ? MyApp.orangeLight : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSelected ? MyApp.brightOrange : MyApp.slateBorder,
+          width: isSelected ? 1.5 : 1,
+        ),
+      ),
+      child: ListTile(
+        onTap: onTap,
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        leading: Icon(
+          isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+          color: isSelected ? MyApp.brightOrange : MyApp.slate400,
+          size: 20,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? MyApp.slate900 : MyApp.slate700,
+            fontSize: 13.5,
+          ),
+        ),
+        trailing: Text(
+          '+₹$extraPrice',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: MyApp.brightOrange,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final filteredOrders = selectedFilter == 'All'
-        ? allOrders
-        : allOrders
-              .where(
-                (o) => o.status.toLowerCase() == selectedFilter.toLowerCase(),
-              )
-              .toList();
-
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 90),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children:
-                  [
-                    'All',
-                    'Delivered',
-                    'Preparing',
-                    'On The Way',
-                    'Pending',
-                    'Cancelled',
-                  ].map((status) {
-                    final isSelected = selectedFilter == status;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        label: Text(status),
-                        selected: isSelected,
-                        selectedColor: MyApp.celebrationGold,
-                        labelStyle: TextStyle(
-                          color: isSelected ? MyApp.midnightBg : MyApp.lavenderText,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12.5,
-                        ),
-                        checkmarkColor: MyApp.midnightBg,
-                        backgroundColor: MyApp.cardBg,
-                        side: BorderSide(
-                          color: isSelected
-                              ? MyApp.celebrationGold
-                              : MyApp.vibrantViolet.withValues(alpha: 0.3),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        onSelected: (val) {
-                          setState(() {
-                            selectedFilter = status;
-                          });
-                        },
-                      ),
-                    );
-                  }).toList(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Showing ${filteredOrders.length} orders',
-            style: const TextStyle(color: MyApp.mutedText, fontSize: 13),
-          ),
-          const SizedBox(height: 12),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: filteredOrders.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final order = filteredOrders[index];
-              final statusColor = getStatusColor(order.status);
-
-              return Card(
-                elevation: 0,
-                color: MyApp.cardBg,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: MyApp.vibrantViolet.withValues(alpha: 0.3)),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [MyApp.brightOrange, Color(0xFFFF8533)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: MyApp.brightOrange.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  leading: CircleAvatar(
-                    backgroundColor: MyApp.royalPurple,
-                    child: Text(
-                      '${index + 1}',
-                      style: const TextStyle(
-                        color: MyApp.celebrationGold,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  title: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
                       Text(
-                        'Order ${order.id}',
-                        style: const TextStyle(
+                        'COMBO MEAL MAKER 🍟🥤',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        'Customize & Swap Any Item',
+                        style: TextStyle(
+                          fontSize: 19,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
                       ),
-                      Text(
-                        '₹${order.amount}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: MyApp.celebrationGold,
-                        ),
-                      ),
+                      SizedBox(height: 2),
                     ],
                   ),
-                  subtitle: Text(
-                    '${order.food}\nOrdered at ${order.time}',
-                    style: const TextStyle(color: MyApp.lavenderText),
-                  ),
-                  isThreeLine: true,
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
+                ),
+                const Icon(Icons.lunch_dining, size: 50, color: Colors.white),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Celebration Value Combos',
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.bold,
+              color: MyApp.slate900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Tap "Customize & Add" on any meal to personalize your items!',
+            style: TextStyle(color: MyApp.slate600, fontSize: 13),
+          ),
+          const SizedBox(height: 14),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: combos.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 14),
+            itemBuilder: (context, index) {
+              final combo = combos[index];
+
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: MyApp.slateBorder),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x0A000000),
+                      blurRadius: 8,
+                      offset: Offset(0, 3),
                     ),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: statusColor,
-                      ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        FoodImageWidget(
+                          width: 76,
+                          height: 76,
+                          assetPath: combo.assetPath,
+                          networkUrl: combo.imageUrl,
+                          icon: combo.icon,
+                          isOutOfStock: combo.isOutOfStock,
+                          borderRadius: 14,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                combo.name,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: MyApp.slate900,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                combo.description,
+                                style: const TextStyle(
+                                  color: MyApp.slate600,
+                                  fontSize: 12.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    child: Text(
-                      order.status,
-                      style: TextStyle(
-                        color: statusColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11.5,
-                      ),
+                    const SizedBox(height: 14),
+                    Divider(color: MyApp.slateBorder),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Starting from',
+                              style: TextStyle(
+                                color: MyApp.slate600,
+                                fontSize: 11,
+                              ),
+                            ),
+                            Text(
+                              '₹${combo.basePrice}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: MyApp.brightOrange,
+                              ),
+                            ),
+                          ],
+                        ),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: MyApp.brightOrange,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                          ),
+                          onPressed: () => _openCustomizerModal(context, combo),
+                          icon: const Icon(
+                            Icons.tune,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                          label: const Text(
+                            'Customize & Add',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => OrderDetailsScreen(order: order),
-                      ),
-                    );
-                  },
+                  ],
                 ),
               );
             },
@@ -2159,30 +3413,32 @@ class OffersScreen extends StatelessWidget {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [MyApp.royalPurple, Color(0xFF7E22CE)],
+                colors: [Color(0xFFFF5E00), Color(0xFFFF8533)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: MyApp.celebrationGold.withValues(alpha: 0.5)),
+              boxShadow: [
+                BoxShadow(
+                  color: MyApp.brightOrange.withValues(alpha: 0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(
-                      Icons.local_offer,
-                      color: MyApp.celebrationGold,
-                      size: 24,
-                    ),
+                    Icon(Icons.local_offer, color: Colors.white, size: 24),
                     SizedBox(width: 8),
                     Text(
                       'Festive Offers & Coupons',
                       style: TextStyle(
                         fontSize: 19,
                         fontWeight: FontWeight.bold,
-                        color: MyApp.softGold,
+                        color: Colors.white,
                       ),
                     ),
                   ],
@@ -2190,7 +3446,7 @@ class OffersScreen extends StatelessWidget {
                 SizedBox(height: 6),
                 Text(
                   'Tap "Apply To Cart" on any coupon to apply instant savings directly to your cart bill!',
-                  style: TextStyle(color: MyApp.lavenderText, fontSize: 12.5),
+                  style: TextStyle(color: Colors.white, fontSize: 12.5),
                 ),
               ],
             ),
@@ -2206,9 +3462,16 @@ class OffersScreen extends StatelessWidget {
               return Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: MyApp.cardBg,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: MyApp.vibrantViolet.withValues(alpha: 0.3)),
+                  border: Border.all(color: MyApp.slateBorder),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x08000000),
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2222,7 +3485,7 @@ class OffersScreen extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 15.5,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: MyApp.slate900,
                             ),
                           ),
                         ),
@@ -2232,16 +3495,16 @@ class OffersScreen extends StatelessWidget {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: MyApp.celebrationGold.withValues(alpha: 0.2),
+                            color: MyApp.orangeLight,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: MyApp.celebrationGold),
+                            border: Border.all(color: MyApp.orangeBorder),
                           ),
                           child: Text(
                             offer['discount']!,
                             style: const TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.bold,
-                              color: MyApp.celebrationGold,
+                              color: MyApp.brightOrange,
                             ),
                           ),
                         ),
@@ -2251,7 +3514,7 @@ class OffersScreen extends StatelessWidget {
                     Text(
                       offer['desc']!,
                       style: const TextStyle(
-                        color: MyApp.lavenderText,
+                        color: MyApp.slate600,
                         fontSize: 12.5,
                       ),
                     ),
@@ -2265,15 +3528,15 @@ class OffersScreen extends StatelessWidget {
                             vertical: 5,
                           ),
                           decoration: BoxDecoration(
-                            color: MyApp.surfaceDark,
+                            color: MyApp.slateBg,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: MyApp.vibrantViolet.withValues(alpha: 0.4)),
+                            border: Border.all(color: MyApp.slateBorder),
                           ),
                           child: Text(
                             'CODE: ${offer['code']}',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: MyApp.celebrationGold,
+                              color: MyApp.brightOrange,
                               letterSpacing: 1,
                               fontSize: 12,
                             ),
@@ -2281,8 +3544,8 @@ class OffersScreen extends StatelessWidget {
                         ),
                         ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: MyApp.celebrationGold,
-                            foregroundColor: MyApp.midnightBg,
+                            backgroundColor: MyApp.brightOrange,
+                            foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
@@ -2293,11 +3556,14 @@ class OffersScreen extends StatelessWidget {
                           icon: const Icon(
                             Icons.check,
                             size: 14,
-                            color: MyApp.midnightBg,
+                            color: Colors.white,
                           ),
                           label: const Text(
                             'Apply To Cart',
-                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
@@ -2314,155 +3580,292 @@ class OffersScreen extends StatelessWidget {
 }
 
 // ============================================================================
-// PAGE 3: CUSTOMERS SCREEN
+// PAGE 3: ORDERS MANAGEMENT SCREEN
 // ============================================================================
-class CustomersScreen extends StatelessWidget {
-  const CustomersScreen({super.key});
+class OrdersScreen extends StatefulWidget {
+  final List<OrderItem> orders;
 
-  final List<Map<String, dynamic>> customers = const [
-    {
-      'name': 'Nirav Sharma',
-      'email': 'nirav.sharma@example.com',
-      'orders': 24,
-      'spent': '₹6,400',
-      'tier': 'Gold VIP',
-    },
-    {
-      'name': 'P Patel',
-      'email': 'p.patel@example.com',
-      'orders': 18,
-      'spent': '₹4,850',
-      'tier': 'Gold VIP',
-    },
-    {
-      'name': 'Someone Mehta',
-      'email': 'someone.m@example.com',
-      'orders': 12,
-      'spent': '₹3,100',
-      'tier': 'Silver',
-    },
-    {
-      'name': 'OK Gupta',
-      'email': 'ok.g@example.com',
-      'orders': 9,
-      'spent': '₹2,200',
-      'tier': 'Silver',
-    },
-    {
-      'name': 'Nothing Singh',
-      'email': 'nothing.s@example.com',
-      'orders': 5,
-      'spent': '₹1,350',
-      'tier': 'Bronze',
-    },
-  ];
+  const OrdersScreen({super.key, required this.orders});
+
+  @override
+  State<OrdersScreen> createState() => _OrdersScreenState();
+}
+
+class _OrdersScreenState extends State<OrdersScreen> {
+  String selectedFilter = 'All';
+
+  Color getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'delivered':
+        return Colors.green;
+      case 'preparing':
+        return MyApp.brightOrange;
+      case 'cancelled':
+        return Colors.red;
+      case 'on the way':
+        return Colors.blue;
+      case 'pending':
+        return Colors.amber.shade800;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData getOrderStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'all':
+        return Icons.list_alt;
+      case 'delivered':
+        return Icons.check_circle_outline;
+      case 'preparing':
+        return Icons.soup_kitchen;
+      case 'on the way':
+        return Icons.delivery_dining;
+      case 'pending':
+        return Icons.timer_outlined;
+      case 'cancelled':
+        return Icons.cancel_outlined;
+      default:
+        return Icons.receipt_long;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final filteredOrders = selectedFilter == 'All'
+        ? widget.orders
+        : widget.orders
+              .where(
+                (o) => o.status.toLowerCase() == selectedFilter.toLowerCase(),
+              )
+              .toList();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Loyal Customers Directory',
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.bold,
-              color: MyApp.softGold,
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children:
+                  [
+                    'All',
+                    'Delivered',
+                    'Preparing',
+                    'On The Way',
+                    'Pending',
+                    'Cancelled',
+                  ].map((status) {
+                    final isSelected = selectedFilter == status;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        avatar: Icon(
+                          getOrderStatusIcon(status),
+                          size: 15,
+                          color: isSelected ? Colors.white : MyApp.brightOrange,
+                        ),
+                        label: Text(status),
+                        selected: isSelected,
+                        selectedColor: MyApp.brightOrange,
+                        labelStyle: TextStyle(
+                          color: isSelected ? Colors.white : MyApp.slate700,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12.5,
+                        ),
+                        checkmarkColor: Colors.white,
+                        backgroundColor: Colors.white,
+                        side: BorderSide(
+                          color: isSelected
+                              ? MyApp.brightOrange
+                              : MyApp.slateBorder,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        onSelected: (val) {
+                          setState(() {
+                            selectedFilter = status;
+                          });
+                        },
+                      ),
+                    );
+                  }).toList(),
             ),
           ),
-          const SizedBox(height: 4),
-          const Text(
-            'Top foodies and celebration loyalty tiers',
-            style: TextStyle(color: MyApp.mutedText, fontSize: 13),
-          ),
           const SizedBox(height: 16),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: customers.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final customer = customers[index];
-              final isGold = customer['tier'] == 'Gold VIP';
-
-              return Card(
-                elevation: 0,
-                color: MyApp.cardBg,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: MyApp.vibrantViolet.withValues(alpha: 0.3)),
-                ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+          Text(
+            'Showing ${filteredOrders.length} orders',
+            style: const TextStyle(color: MyApp.slate600, fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          if (filteredOrders.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(36),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: MyApp.slateBorder),
+              ),
+              child: Column(
+                children: const [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 50,
+                    color: MyApp.slate400,
                   ),
-                  leading: CircleAvatar(
-                    backgroundColor: isGold
-                        ? MyApp.celebrationGold.withValues(alpha: 0.2)
-                        : MyApp.royalPurple,
-                    child: Text(
-                      customer['name'][0],
-                      style: TextStyle(
-                        color: isGold
-                            ? MyApp.celebrationGold
-                            : MyApp.softGold,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  SizedBox(height: 10),
+                  Text(
+                    'No Orders Found',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: MyApp.slate900,
+                      fontSize: 16,
                     ),
                   ),
-                  title: Row(
-                    children: [
-                      Text(
-                        customer['name'],
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      if (isGold)
-                        const Icon(
-                          Icons.star,
-                          color: MyApp.celebrationGold,
-                          size: 16,
-                        ),
-                    ],
+                  SizedBox(height: 4),
+                  Text(
+                    'Place an order from Explore or Combos to see it here live!',
+                    style: TextStyle(color: MyApp.slate600, fontSize: 12.5),
                   ),
-                  subtitle: Text(
-                    '${customer['email']}\n${customer['orders']} orders completed',
-                    style: const TextStyle(color: MyApp.lavenderText),
+                ],
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: filteredOrders.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final order = filteredOrders[index];
+                final statusColor = getStatusColor(order.status);
+                final bool isLiveOrder =
+                    order.status == 'Preparing' || order.status == 'On The Way';
+
+                return Card(
+                  elevation: isLiveOrder ? 3 : 0,
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: isLiveOrder
+                          ? MyApp.brightOrange
+                          : MyApp.slateBorder,
+                      width: isLiveOrder ? 1.5 : 1.0,
+                    ),
                   ),
-                  isThreeLine: true,
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        customer['spent'],
-                        style: const TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.bold,
-                          color: MyApp.celebrationGold,
-                        ),
-                      ),
-                      Text(
-                        customer['tier'],
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    leading: CircleAvatar(
+                      radius: 20,
+                      backgroundColor: isLiveOrder
+                          ? MyApp.brightOrange
+                          : MyApp.slateBg,
+                      child: Text(
+                        '#${index + 1}',
                         style: TextStyle(
-                          fontSize: 11,
-                          color: isGold
-                              ? MyApp.softGold
-                              : MyApp.mutedText,
+                          color: isLiveOrder ? Colors.white : MyApp.slate900,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13,
                         ),
                       ),
-                    ],
+                    ),
+                    title: Row(
+                      children: [
+                        Text(
+                          'Order ${order.id}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: MyApp.slate900,
+                            fontSize: 15,
+                          ),
+                        ),
+                        if (index == 0 && isLiveOrder) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: MyApp.orangeLight,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: MyApp.brightOrange,
+                                width: 0.8,
+                              ),
+                            ),
+                            child: const Text(
+                              '🔥 LATEST',
+                              style: TextStyle(
+                                color: MyApp.brightOrange,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        Text(
+                          '₹${order.amount}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: MyApp.brightOrange,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '${order.food}\nOrdered at ${order.time}',
+                        style: const TextStyle(
+                          color: MyApp.slate600,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ),
+                    isThreeLine: true,
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: statusColor, width: 1.2),
+                      ),
+                      child: Text(
+                        order.status,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              OrderDetailsScreen(order: order),
+                        ),
+                      );
+                    },
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
         ],
       ),
     );
@@ -2470,19 +3873,19 @@ class CustomersScreen extends StatelessWidget {
 }
 
 // ============================================================================
-// PAGE 4: SETTINGS SCREEN
+// PAGE 4: CUSTOMER PROFILE & PREFERENCES SCREEN
 // ============================================================================
-class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+class CustomerProfileScreen extends StatefulWidget {
+  const CustomerProfileScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  State<CustomerProfileScreen> createState() => _CustomerProfileScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   bool pushNotifications = true;
   bool soundAlerts = true;
-  bool autoAcceptOrders = false;
+  bool vegOnlyMode = false;
 
   @override
   Widget build(BuildContext context) {
@@ -2491,77 +3894,169 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'App & Store Settings',
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.bold,
-              color: MyApp.softGold,
+          // CUSTOMER PROFILE HEADER CARD
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFF5E00), Color(0xFFFF8533)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: MyApp.brightOrange.withValues(alpha: 0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: Colors.white,
+                  child: const Text(
+                    'P',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: MyApp.brightOrange,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: const [
+                          Text(
+                            'Prince Vaviya',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          Icon(Icons.verified, color: Colors.white, size: 18),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'prince@example.com • Gold VIP Member',
+                        style: TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          '⭐ 450 Celebration Reward Points',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+          const Text(
+            'Dining Preferences & Alerts',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: MyApp.slate900,
+            ),
+          ),
+          const SizedBox(height: 12),
           Card(
             elevation: 0,
-            color: MyApp.cardBg,
+            color: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: MyApp.vibrantViolet.withValues(alpha: 0.3)),
+              side: const BorderSide(color: MyApp.slateBorder),
             ),
             child: Column(
               children: [
                 SwitchListTile(
                   title: const Text(
-                    'Push Notifications',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                    'Pure Veg Mode Filter',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: MyApp.slate900,
+                    ),
                   ),
                   subtitle: const Text(
-                    'Receive order alerts and status updates',
-                    style: TextStyle(color: MyApp.mutedText),
+                    'Show only vegetarian menu & combos',
+                    style: TextStyle(color: MyApp.slate600),
+                  ),
+                  value: vegOnlyMode,
+                  activeTrackColor: MyApp.orangeLight,
+                  activeThumbColor: MyApp.brightOrange,
+                  onChanged: (val) {
+                    setState(() {
+                      vegOnlyMode = val;
+                    });
+                  },
+                ),
+                Divider(height: 1, color: MyApp.slateBorder),
+                SwitchListTile(
+                  title: const Text(
+                    'Order Status Updates',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: MyApp.slate900,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Receive live tracking notifications',
+                    style: TextStyle(color: MyApp.slate600),
                   ),
                   value: pushNotifications,
-                  activeTrackColor: MyApp.royalPurple,
-                  activeThumbColor: MyApp.celebrationGold,
+                  activeTrackColor: MyApp.orangeLight,
+                  activeThumbColor: MyApp.brightOrange,
                   onChanged: (val) {
                     setState(() {
                       pushNotifications = val;
                     });
                   },
                 ),
-                Divider(height: 1, color: MyApp.vibrantViolet.withValues(alpha: 0.2)),
+                Divider(height: 1, color: MyApp.slateBorder),
                 SwitchListTile(
                   title: const Text(
-                    'Order Sound Alerts',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                    'Sound Alerts & Chimes',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: MyApp.slate900,
+                    ),
                   ),
                   subtitle: const Text(
-                    'Play sound on new incoming orders',
-                    style: TextStyle(color: MyApp.mutedText),
+                    'Play pleasant sound when food is on the way',
+                    style: TextStyle(color: MyApp.slate600),
                   ),
                   value: soundAlerts,
-                  activeTrackColor: MyApp.royalPurple,
-                  activeThumbColor: MyApp.celebrationGold,
+                  activeTrackColor: MyApp.orangeLight,
+                  activeThumbColor: MyApp.brightOrange,
                   onChanged: (val) {
                     setState(() {
                       soundAlerts = val;
-                    });
-                  },
-                ),
-                Divider(height: 1, color: MyApp.vibrantViolet.withValues(alpha: 0.2)),
-                SwitchListTile(
-                  title: const Text(
-                    'Auto-Accept Orders',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                  subtitle: const Text(
-                    'Automatically move new orders to Preparing',
-                    style: TextStyle(color: MyApp.mutedText),
-                  ),
-                  value: autoAcceptOrders,
-                  activeTrackColor: MyApp.royalPurple,
-                  activeThumbColor: MyApp.celebrationGold,
-                  onChanged: (val) {
-                    setState(() {
-                      autoAcceptOrders = val;
                     });
                   },
                 ),
@@ -2571,37 +4066,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 20),
           Card(
             elevation: 0,
-            color: MyApp.cardBg,
+            color: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: MyApp.vibrantViolet.withValues(alpha: 0.3)),
+              side: const BorderSide(color: MyApp.slateBorder),
             ),
             child: Column(
               children: [
                 const ListTile(
-                  leading: Icon(Icons.store, color: MyApp.celebrationGold),
-                  title: Text('Store Name', style: TextStyle(color: Colors.white)),
-                  trailing: Text(
-                    'Cravyy Celebrations Hub',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: MyApp.softGold),
+                  leading: Icon(Icons.home_outlined, color: MyApp.brightOrange),
+                  title: Text(
+                    'Saved Delivery Address',
+                    style: TextStyle(
+                      color: MyApp.slate900,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Home • Surat, Gujarat',
+                    style: TextStyle(color: MyApp.slate600),
+                  ),
+                  trailing: Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: MyApp.slate400,
                   ),
                 ),
-                Divider(height: 1, color: MyApp.vibrantViolet.withValues(alpha: 0.2)),
+                Divider(height: 1, color: MyApp.slateBorder),
                 const ListTile(
-                  leading: Icon(Icons.currency_rupee, color: MyApp.celebrationGold),
-                  title: Text('Default Currency', style: TextStyle(color: Colors.white)),
-                  trailing: Text(
-                    'INR (₹)',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: MyApp.softGold),
+                  leading: Icon(
+                    Icons.payment_outlined,
+                    color: MyApp.brightOrange,
+                  ),
+                  title: Text(
+                    'Saved Payment Methods',
+                    style: TextStyle(
+                      color: MyApp.slate900,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'UPI / Cards / Net Banking',
+                    style: TextStyle(color: MyApp.slate600),
+                  ),
+                  trailing: Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: MyApp.slate400,
                   ),
                 ),
-                Divider(height: 1, color: MyApp.vibrantViolet.withValues(alpha: 0.2)),
+                Divider(height: 1, color: MyApp.slateBorder),
                 const ListTile(
-                  leading: Icon(Icons.info_outline, color: MyApp.celebrationGold),
-                  title: Text('App Version', style: TextStyle(color: Colors.white)),
-                  trailing: Text(
-                    'v3.0.0 Luxury Edition',
-                    style: TextStyle(color: MyApp.mutedText),
+                  leading: Icon(Icons.help_outline, color: MyApp.brightOrange),
+                  title: Text(
+                    'Customer Care & Live Support',
+                    style: TextStyle(
+                      color: MyApp.slate900,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '24x7 Help Center',
+                    style: TextStyle(color: MyApp.slate600),
+                  ),
+                  trailing: Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: MyApp.slate400,
                   ),
                 ),
               ],
@@ -2612,8 +4143,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             width: double.infinity,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: MyApp.celebrationGold,
-                foregroundColor: MyApp.midnightBg,
+                backgroundColor: MyApp.brightOrange,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -2622,17 +4153,225 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Settings saved successfully!'),
-                    backgroundColor: MyApp.cardBg,
+                    content: Text('Preferences saved successfully!'),
+                    backgroundColor: MyApp.slate900,
                   ),
                 );
               },
-              icon: const Icon(Icons.save, color: MyApp.midnightBg),
+              icon: const Icon(Icons.save, color: Colors.white),
               label: const Text(
                 'Save Preferences',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// STAT PILL
+// ============================================================================
+class QuickStatPill extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool isGold;
+
+  const QuickStatPill({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.isGold = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isGold ? MyApp.brightOrange : MyApp.slateBorder,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: isGold ? MyApp.brightOrange : MyApp.slate600,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: isGold ? MyApp.brightOrange : MyApp.slate900,
+            ),
+          ),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 11, color: MyApp.slate600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// BRIGHT WHITE & SLATE FOOD CARD WITH ORANGE ACCENTS
+// ============================================================================
+class VelvetFoodCard extends StatelessWidget {
+  final FoodItem food;
+  final VoidCallback onAddToCart;
+
+  const VelvetFoodCard({
+    super.key,
+    required this.food,
+    required this.onAddToCart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: MyApp.slateBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: MyApp.orangeLight,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: MyApp.orangeBorder),
+                ),
+                child: Text(
+                  food.category,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: MyApp.brightOrange,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.green, width: 1.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Icon(Icons.circle, color: Colors.green, size: 6),
+              ),
+            ],
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: FoodImageWidget(
+                assetPath: food.assetPath,
+                networkUrl: food.imageUrl,
+                icon: food.icon,
+                isOutOfStock: food.isOutOfStock,
+                borderRadius: 14,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(1.5),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.green, width: 1.2),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: const Icon(Icons.circle, color: Colors.green, size: 6),
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  food.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.bold,
+                    color: MyApp.slate900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            food.deliveryTime,
+            style: const TextStyle(color: MyApp.slate600, fontSize: 11.5),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                food.price,
+                style: const TextStyle(
+                  color: MyApp.slate900,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15,
+                ),
+              ),
+              InkWell(
+                onTap: onAddToCart,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: MyApp.brightOrange,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    '+ ADD',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -2651,15 +4390,15 @@ class OrderDetailsScreen extends StatelessWidget {
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'delivered':
-        return Colors.greenAccent;
+        return Colors.green;
       case 'preparing':
-        return Colors.orangeAccent;
+        return MyApp.brightOrange;
       case 'cancelled':
-        return Colors.redAccent;
+        return Colors.red;
       case 'on the way':
-        return MyApp.vibrantViolet;
+        return Colors.blue;
       case 'pending':
-        return MyApp.celebrationGold;
+        return Colors.amber.shade800;
       default:
         return Colors.grey;
     }
@@ -2678,10 +4417,10 @@ class OrderDetailsScreen extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: 500),
             child: Card(
               elevation: 0,
-              color: MyApp.cardBg,
+              color: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
-                side: const BorderSide(color: MyApp.celebrationGold),
+                side: const BorderSide(color: MyApp.slateBorder),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -2691,15 +4430,13 @@ class OrderDetailsScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [MyApp.royalPurple, MyApp.vibrantViolet],
-                        ),
+                        color: MyApp.orangeLight,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.receipt_long,
                         size: 42,
-                        color: MyApp.celebrationGold,
+                        color: MyApp.brightOrange,
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -2708,11 +4445,11 @@ class OrderDetailsScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: MyApp.softGold,
+                        color: MyApp.slate900,
                       ),
                     ),
                     const SizedBox(height: 18),
-                    Divider(color: MyApp.vibrantViolet.withValues(alpha: 0.3)),
+                    Divider(color: MyApp.slateBorder),
                     const SizedBox(height: 10),
 
                     _buildDetailRow('Order ID', order.id, isBold: true),
@@ -2733,7 +4470,7 @@ class OrderDetailsScreen extends StatelessWidget {
                       children: [
                         const Text(
                           'Status',
-                          style: TextStyle(color: MyApp.lavenderText, fontSize: 14),
+                          style: TextStyle(color: MyApp.slate600, fontSize: 14),
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -2741,7 +4478,7 @@ class OrderDetailsScreen extends StatelessWidget {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.15),
+                            color: statusColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: statusColor),
                           ),
@@ -2758,7 +4495,7 @@ class OrderDetailsScreen extends StatelessWidget {
                     ),
 
                     const SizedBox(height: 25),
-                    Divider(color: MyApp.vibrantViolet.withValues(alpha: 0.3)),
+                    Divider(color: MyApp.slateBorder),
                     const SizedBox(height: 20),
 
                     SizedBox(
@@ -2766,8 +4503,8 @@ class OrderDetailsScreen extends StatelessWidget {
                       height: 46,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: MyApp.celebrationGold,
-                          foregroundColor: MyApp.midnightBg,
+                          backgroundColor: MyApp.brightOrange,
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -2777,7 +4514,7 @@ class OrderDetailsScreen extends StatelessWidget {
                         },
                         icon: const Icon(
                           Icons.arrow_back,
-                          color: MyApp.midnightBg,
+                          color: Colors.white,
                           size: 18,
                         ),
                         label: const Text(
@@ -2805,7 +4542,7 @@ class OrderDetailsScreen extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(color: MyApp.lavenderText, fontSize: 14),
+          style: const TextStyle(color: MyApp.slate600, fontSize: 14),
         ),
         Flexible(
           child: Text(
@@ -2814,7 +4551,7 @@ class OrderDetailsScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 14.5,
               fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-              color: isBold ? MyApp.celebrationGold : Colors.white,
+              color: isBold ? MyApp.brightOrange : MyApp.slate900,
             ),
           ),
         ),
