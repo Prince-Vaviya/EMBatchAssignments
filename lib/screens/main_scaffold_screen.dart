@@ -122,9 +122,9 @@ class _MainScaffoldScreenState extends State<MainScaffoldScreen> {
         centerTitle: true,
         actions: [
           // Fire icon with default 0 without outer container
-          Row(
+          const Row(
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               Text(
                 '4',
                 style: TextStyle(

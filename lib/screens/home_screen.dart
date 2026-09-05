@@ -1,11 +1,13 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../models/workout_item.dart';
 import '../providers/user_provider.dart';
 import '../providers/workout_provider.dart';
 import '../theme/app_theme.dart';
 
+/// Dotted Line Painter for Y-Axis and Dynamic Projection
 class DottedLinePainter extends CustomPainter {
   final Color color;
   final double strokeWidth;
@@ -45,6 +47,7 @@ class DottedLinePainter extends CustomPainter {
       oldDelegate.gapLength != gapLength;
 }
 
+/// Category Donut Ring Painter with vibrant color distribution
 class CategoryRingPainter extends CustomPainter {
   final List<double> values;
   final List<Color> colors;
@@ -76,7 +79,9 @@ class CategoryRingPainter extends CustomPainter {
 
     for (int i = 0; i < values.length; i++) {
       if (values[i] <= 0) continue;
-      final sweepAngle = (values[i] / total) * (2 * math.pi) - (values.length > 1 ? gapAngle : 0);
+      final sweepAngle =
+          (values[i] / total) * (2 * math.pi) -
+          (values.length > 1 ? gapAngle : 0);
 
       final paint = Paint()
         ..color = colors[i % colors.length]
@@ -101,6 +106,8 @@ class CategoryRingPainter extends CustomPainter {
   bool shouldRepaint(covariant CategoryRingPainter oldDelegate) => true;
 }
 
+/// Responsive Multi-Section Dashboard Screen
+/// Demonstrating: ListView, GridView, MediaQuery, and Flexible/Expanded
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -109,7 +116,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  int _selectedDayIndex = -1; // -1 means defaults to current day
+  int _selectedDayIndex = -1; // Defaults to current day
 
   static const List<String> _days = [
     'Sun',
@@ -130,8 +137,87 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     390.0,
   ];
 
+  // Routine card items for horizontal ListView
+  static const List<Map<String, dynamic>> _featuredRoutines = [
+    {
+      'title': 'Upper Body Hypertrophy',
+      'category': 'Chest & Arms',
+      'duration': '45 min',
+      'intensity': 'High',
+      'calories': '420 kcal',
+      'icon': Icons.fitness_center_rounded,
+      'color': Color(0xFF38BDF8),
+    },
+    {
+      'title': 'High Intensity HIIT',
+      'category': 'Cardio & Core',
+      'duration': '30 min',
+      'intensity': 'Extreme',
+      'calories': '380 kcal',
+      'icon': Icons.flash_on_rounded,
+      'color': Color(0xFFF97316),
+    },
+    {
+      'title': 'Leg Power & Squats',
+      'category': 'Legs & Glutes',
+      'duration': '50 min',
+      'intensity': 'Intense',
+      'calories': '510 kcal',
+      'icon': Icons.directions_run_rounded,
+      'color': Color(0xFFF43F5E),
+    },
+    {
+      'title': 'Back Wings & Pulls',
+      'category': 'Back & Shoulders',
+      'duration': '40 min',
+      'intensity': 'Medium',
+      'calories': '350 kcal',
+      'icon': Icons.sports_gymnastics_rounded,
+      'color': Color(0xFF8B5CF6),
+    },
+  ];
+
+  // Category items for GridView
+  static const List<Map<String, dynamic>> _categories = [
+    {
+      'name': 'Chest',
+      'exercises': 12,
+      'icon': Icons.fitness_center_rounded,
+      'color': Color(0xFF38BDF8),
+    },
+    {
+      'name': 'Back',
+      'exercises': 14,
+      'icon': Icons.sports_gymnastics_rounded,
+      'color': Color(0xFF8B5CF6),
+    },
+    {
+      'name': 'Legs',
+      'exercises': 16,
+      'icon': Icons.directions_run_rounded,
+      'color': Color(0xFFF43F5E),
+    },
+    {
+      'name': 'Shoulders',
+      'exercises': 10,
+      'icon': Icons.accessibility_new_rounded,
+      'color': Color(0xFFD946EF),
+    },
+    {
+      'name': 'Arms',
+      'exercises': 15,
+      'icon': Icons.sports_mma_rounded,
+      'color': Color(0xFFF97316),
+    },
+    {
+      'name': 'Cardio',
+      'exercises': 8,
+      'icon': Icons.speed_rounded,
+      'color': Color(0xFFE2F163),
+    },
+  ];
+
   int _getTodayDayIndex() {
-    // DateTime.weekday: 1=Mon, 2=Tue, ..., 7=Sun
     final weekday = DateTime.now().weekday;
     return weekday == 7 ? 0 : weekday; // 0=Sun, 1=Mon, ..., 6=Sat
   }
@@ -158,11 +244,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     // Historical day splits
     switch (dayIndex) {
-      case 0: // Sun
+      case 0:
         return {'Legs': 8, 'Core': 4, 'Cardio': 3};
-      case 1: // Mon
+      case 1:
         return {'Chest': 9, 'Shoulders': 5, 'Arms': 4};
-      case 2: // Tue
+      case 2:
         return {'Back': 8, 'Arms': 5, 'Core': 3};
       default:
         return {'Chest': 6, 'Back': 5, 'Legs': 4};
@@ -177,6 +263,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. MediaQuery: Query screen dimensions and responsive layout flags
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final isWideScreen = screenWidth >= 800; // Tablet & Desktop split breakpoint
+    final isTablet = screenWidth >= 550;
+
     final workouts = ref.watch(workoutListProvider);
     final userProfile = ref.watch(userProfileProvider);
 
@@ -199,14 +291,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ? _selectedDayIndex
         : todayIndex;
 
-    // Compute weekly calories array: past days + today's live workouts; future days are 0.0
+    // Compute weekly calories array
     final List<double> weeklyData = List.generate(7, (i) {
       if (i < todayIndex) {
         return _baseCalories[i];
       } else if (i == todayIndex) {
         return _baseCalories[i] + todayLiveCalories;
       } else {
-        return 0.0; // Future days after today
+        return 0.0;
       }
     });
 
@@ -223,84 +315,744 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       workouts,
     );
 
+    final double horizontalPadding = screenWidth > 600 ? 24.0 : 16.0;
+
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        padding: EdgeInsets.fromLTRB(
+          horizontalPadding,
+          16,
+          horizontalPadding,
+          36,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Greeting (Name only, no age/roll number)
-            Text(
-              userProfile.name.isNotEmpty
-                  ? 'Hey, ${userProfile.name} 👋'
-                  : 'Hey, Athlete 👋',
+            // ==========================================
+            // SECTION 1: ATHLETE GREETING & STATUS BANNER
+            // ==========================================
+            _buildHeroHeader(userProfile.name, screenWidth),
+
+            const SizedBox(height: 18),
+
+            // ==========================================
+            // SECTION 2: RESPONSIVE METRIC STATS GRID (GridView + MediaQuery + Flexible/Expanded)
+            // ==========================================
+            _buildResponsiveStatsGrid(
+              todayCalories:
+                  (todayLiveCalories + _baseCalories[todayIndex]).toInt(),
+              completedSets: completedSets,
+              totalSets: totalSets,
+              exerciseCount: workouts.length,
+              isTablet: isTablet,
+              isWideScreen: isWideScreen,
+              screenWidth: screenWidth,
+            ),
+
+            const SizedBox(height: 22),
+
+            // ==========================================
+            // SECTION 3: ANALYTICS & MUSCLE SPLIT (Adaptive Row / Column with Expanded)
+            // ==========================================
+            if (isWideScreen)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Left: Weekly Calorie Graph (Expanded)
+                  Expanded(
+                    flex: 6,
+                    child: _buildWeeklyCalorieGraph(
+                      weeklyData: weeklyData,
+                      maxCalorie: maxCalorie,
+                      todayIndex: todayIndex,
+                      totalWeeklyBurn: totalWeeklyBurn,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Right: Muscle Group Donut Ring Chart (Expanded)
+                  Expanded(
+                    flex: 5,
+                    child: _buildCategoryRingChart(
+                      selectedDayName: _days[currentSelectedDay],
+                      categorySplit: categorySplit,
+                      isFuture: currentSelectedDay > todayIndex,
+                    ),
+                  ),
+                ],
+              )
+            else ...[
+              _buildWeeklyCalorieGraph(
+                weeklyData: weeklyData,
+                maxCalorie: maxCalorie,
+                todayIndex: todayIndex,
+                totalWeeklyBurn: totalWeeklyBurn,
+              ),
+              const SizedBox(height: 16),
+              _buildCategoryRingChart(
+                selectedDayName: _days[currentSelectedDay],
+                categorySplit: categorySplit,
+                isFuture: currentSelectedDay > todayIndex,
+              ),
+            ],
+
+            const SizedBox(height: 26),
+
+            // ==========================================
+            // SECTION 4: FEATURED ROUTINES CAROUSEL (Horizontal ListView.builder + Flexible)
+            // ==========================================
+            _buildSectionHeader(
+              title: 'Featured Daily Routines',
+              subtitle: 'Curated programs for optimal gains',
+              actionLabel: 'Explore All',
+              onActionTap: () => context.push('/add'),
+            ),
+            const SizedBox(height: 12),
+            _buildFeaturedRoutinesList(screenWidth),
+
+            const SizedBox(height: 26),
+
+            // ==========================================
+            // SECTION 5: MUSCLE GROUP EXPLORER (GridView.builder + MediaQuery + Expanded)
+            // ==========================================
+            _buildSectionHeader(
+              title: 'Target Muscle Groups',
+              subtitle: 'Focus your training split today',
+              actionLabel: '+ Custom Log',
+              onActionTap: () => context.push('/add'),
+            ),
+            const SizedBox(height: 12),
+            _buildCategoryGrid(screenWidth),
+
+            const SizedBox(height: 26),
+
+            // ==========================================
+            // SECTION 6: TODAY'S ACTIVE WORKOUT CHECKLIST (ListView.separated / Dynamic Column)
+            // ==========================================
+            _buildSectionHeader(
+              title: "Today's Logged Plan",
+              subtitle: '${workouts.length} active movements scheduled',
+              actionLabel: 'Log New',
+              onActionTap: () => context.push('/add'),
+            ),
+            const SizedBox(height: 12),
+            _buildTodayWorkoutsList(workouts),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Section Header with title and quick action link
+  Widget _buildSectionHeader({
+    required String title,
+    required String subtitle,
+    required String actionLabel,
+    required VoidCallback onActionTap,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // Flexible text block
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textPrimary,
+                  letterSpacing: 0.1,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textSecondary.withValues(alpha: 0.8),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        InkWell(
+          onTap: onActionTap,
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  actionLabel,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 3),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 11,
+                  color: AppTheme.primary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Hero greeting component
+  Widget _buildHeroHeader(String userName, double screenWidth) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(screenWidth > 600 ? 20 : 16),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Row(
+        children: [
+          // Expanded text greeting
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  userName.isNotEmpty ? 'Hey, $userName 👋' : 'Hey, Athlete 👋',
+                  style: TextStyle(
+                    fontSize: screenWidth > 600 ? 24 : 20,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.2,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Let's crush today's fitness goals & track your progress",
+                  style: TextStyle(
+                    color: AppTheme.textSecondary.withValues(alpha: 0.85),
+                    fontSize: screenWidth > 600 ? 14 : 12.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Readiness badge with Flexible
+          Flexible(
+            flex: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppTheme.primary.withValues(alpha: 0.4),
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.bolt_rounded, color: AppTheme.primary, size: 16),
+                  SizedBox(width: 4),
+                  Text(
+                    'Ready 100%',
+                    style: TextStyle(
+                      color: AppTheme.primary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Section 2: Responsive Metrics Grid (GridView.builder + MediaQuery + Flexible/Expanded)
+  Widget _buildResponsiveStatsGrid({
+    required int todayCalories,
+    required int completedSets,
+    required int totalSets,
+    required int exerciseCount,
+    required bool isTablet,
+    required bool isWideScreen,
+    required double screenWidth,
+  }) {
+    final int crossAxisCount = isWideScreen ? 4 : (isTablet ? 4 : 2);
+    final double childAspectRatio = isWideScreen
+        ? 1.55
+        : (isTablet ? 1.45 : (screenWidth < 360 ? 1.3 : 1.45));
+
+    final stats = [
+      {
+        'icon': Icons.local_fire_department_rounded,
+        'iconColor': AppTheme.primary,
+        'label': "Today's Burn",
+        'value': '$todayCalories kcal',
+        'sublabel': "You're on fire 🔥",
+      },
+      {
+        'icon': Icons.checklist_rounded,
+        'iconColor': const Color(0xFF38BDF8),
+        'label': 'Sets Progress',
+        'value': '$completedSets / $totalSets',
+        'sublabel': '$exerciseCount active exercises',
+      },
+      {
+        'icon': Icons.timer_outlined,
+        'iconColor': const Color(0xFFF97316),
+        'label': 'Training Time',
+        'value': '${(completedSets * 3.5).toInt()} mins',
+        'sublabel': 'Rest avg 60s/set',
+      },
+      {
+        'icon': Icons.insights_rounded,
+        'iconColor': const Color(0xFFD946EF),
+        'label': 'Weekly Target',
+        'value': '${((completedSets / (totalSets > 0 ? totalSets : 1)) * 100).toInt()}%',
+        'sublabel': 'Consistent streak ⚡',
+      },
+    ];
+
+    return GridView.builder(
+      itemCount: stats.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: childAspectRatio,
+      ),
+      itemBuilder: (context, index) {
+        final item = stats[index];
+        return _buildStatCard(
+          icon: item['icon'] as IconData,
+          iconColor: item['iconColor'] as Color,
+          label: item['label'] as String,
+          value: item['value'] as String,
+          sublabel: item['sublabel'] as String,
+        );
+      },
+    );
+  }
+
+  // Stat Card Widget using Flexible/Expanded
+  Widget _buildStatCard({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+    required String sublabel,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: iconColor, size: 16),
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          Flexible(
+            child: Text(
+              value,
               style: const TextStyle(
-                fontSize: 24,
+                fontSize: 18,
                 fontWeight: FontWeight.w900,
-                letterSpacing: 0.2,
+                color: AppTheme.textPrimary,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Text(
+            sublabel,
+            style: TextStyle(
+              fontSize: 10,
+              color: AppTheme.textSecondary.withValues(alpha: 0.85),
+              fontWeight: FontWeight.w500,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Section 4: Featured Routines Horizontal ListView
+  Widget _buildFeaturedRoutinesList(double screenWidth) {
+    return SizedBox(
+      height: 136,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: _featuredRoutines.length,
+        itemBuilder: (context, index) {
+          final item = _featuredRoutines[index];
+          final Color accentColor = item['color'] as Color;
+
+          return Container(
+            width: screenWidth > 600 ? 250 : 220,
+            margin: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppTheme.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        item['category'] as String,
+                        style: TextStyle(
+                          color: accentColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Icon(item['icon'] as IconData, color: accentColor, size: 18),
+                  ],
+                ),
+                Text(
+                  item['title'] as String,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.schedule_rounded,
+                      size: 13,
+                      color: AppTheme.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      item['duration'] as String,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    const Icon(
+                      Icons.local_fire_department_rounded,
+                      size: 13,
+                      color: AppTheme.primary,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      item['calories'] as String,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // Section 5: Muscle Group GridView (GridView.builder + MediaQuery + Expanded)
+  Widget _buildCategoryGrid(double screenWidth) {
+    final int crossAxisCount = screenWidth >= 800 ? 6 : (screenWidth >= 500 ? 3 : 2);
+
+    return GridView.builder(
+      itemCount: _categories.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 2.1,
+      ),
+      itemBuilder: (context, index) {
+        final item = _categories[index];
+        final Color catColor = item['color'] as Color;
+
+        return InkWell(
+          onTap: () => context.push('/add'),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppTheme.border),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: catColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(item['icon'] as IconData, color: catColor, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        item['name'] as String,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        '${item['exercises']} exercises',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppTheme.textSecondary.withValues(alpha: 0.8),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Section 6: Today's Logged Plan List
+  Widget _buildTodayWorkoutsList(List<WorkoutLoggerItem> workouts) {
+    if (workouts.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              Icons.fitness_center_rounded,
+              size: 38,
+              color: AppTheme.textSecondary.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'No workouts logged for today yet',
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
                 color: AppTheme.textPrimary,
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              "Let's crush today's fitness goals & track your progress",
+              'Start logging your movements to build your streak',
               style: TextStyle(
-                color: AppTheme.textSecondary.withValues(alpha: 0.85),
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+                fontSize: 12,
+                color: AppTheme.textSecondary.withValues(alpha: 0.8),
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            // Weekly Calories Burn Bar Graph Component with Y-axis and Dotted Line
-            _buildWeeklyCalorieGraph(
-              weeklyData: weeklyData,
-              maxCalorie: maxCalorie,
-              todayIndex: todayIndex,
-              totalWeeklyBurn: totalWeeklyBurn,
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: () => context.push('/add'),
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Add Exercise'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
+          ],
+        ),
+      );
+    }
 
-            const SizedBox(height: 18),
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: workouts.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final workout = workouts[index];
+        final categoryColor = AppTheme.getCategoryColor(workout.category);
+        final bool isDone = workout.completedSets >= workout.targetSets;
 
-            // Metric Summary Cards
-            Row(
+        return InkWell(
+          onTap: () => context.push('/details/${workout.id}'),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isDone
+                    ? AppTheme.primary.withValues(alpha: 0.4)
+                    : AppTheme.border,
+              ),
+            ),
+            child: Row(
               children: [
-                Expanded(
-                  child: _buildStatCard(
-                    icon: Icons.local_fire_department_rounded,
-                    iconColor: AppTheme.primary,
-                    label: "Today's Burn",
-                    value:
-                        '${(todayLiveCalories + _baseCalories[todayIndex]).toInt()} kcal',
-                    sublabel: "You're on fire 🔥",
+                // Category color pill
+                Container(
+                  width: 4,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: categoryColor,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
                 const SizedBox(width: 12),
+                // Exercise details using Expanded
                 Expanded(
-                  child: _buildStatCard(
-                    icon: Icons.checklist_rounded,
-                    iconColor: AppTheme.primary,
-                    label: 'Sets Progress',
-                    value: '$completedSets / $totalSets',
-                    sublabel: '${workouts.length} exercises active',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        workout.exerciseName,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Text(
+                            workout.category,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: categoryColor,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '•  ${workout.weightLoad} kg × ${workout.repetitions} reps',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Set progress badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isDone
+                        ? AppTheme.primary.withValues(alpha: 0.15)
+                        : AppTheme.surfaceVariant,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isDone
+                          ? AppTheme.primary.withValues(alpha: 0.4)
+                          : AppTheme.border,
+                    ),
+                  ),
+                  child: Text(
+                    '${workout.completedSets}/${workout.targetSets} Sets',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: isDone ? AppTheme.primary : AppTheme.textSecondary,
+                    ),
                   ),
                 ),
               ],
             ),
-
-            const SizedBox(height: 18),
-
-            // Category Muscle Group Ring Chart Component with vibrant colors (Blue, Violet, Pink, Magenta, Orange)
-            _buildCategoryRingChart(
-              selectedDayName: _days[currentSelectedDay],
-              categorySplit: categorySplit,
-              isFuture: currentSelectedDay > todayIndex,
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -318,7 +1070,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final selectedDayName = _days[currentSelected];
     final isFutureSelected = currentSelected > todayIndex;
 
-    // Calculate Y-axis top ceiling and steps (e.g. 1000, 750, 500, 250, 0 or 800, 600, 400, 200, 0)
     final double yCeiling = (((maxCalorie / 200).ceil() * 200).toDouble())
         .clamp(600.0, 1600.0);
     final List<int> yLabels = [
@@ -458,12 +1209,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                 const SizedBox(width: 8),
 
-                // Main Graph Area (Dotted Lines + Active Dotted Line + Bars)
+                // Main Graph Area
                 Expanded(
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      // Background Dotted Grid Lines (4 levels)
+                      // Background Dotted Grid Lines
                       Positioned.fill(
                         bottom: 35,
                         child: Column(
@@ -481,7 +1232,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
 
-                      // Active Dynamic Dotted Projection Line from Bar to Y-axis
+                      // Active Dynamic Dotted Projection Line
                       if (!isFutureSelected && selectedCal > 0)
                         AnimatedPositioned(
                           duration: const Duration(milliseconds: 350),
@@ -489,12 +1240,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           top: activeLineTop,
                           left: 0,
                           right: 0,
-                          child: Row(
+                          child: const Row(
                             children: [
                               Expanded(
                                 child: CustomPaint(
-                                  size: const Size(double.infinity, 2),
-                                  painter: const DottedLinePainter(
+                                  size: Size(double.infinity, 2),
+                                  painter: DottedLinePainter(
                                     color: AppTheme.primary,
                                     strokeWidth: 1.5,
                                     dashLength: 4.0,
@@ -506,7 +1257,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
 
-                      // 7 Day Bars (Sun - Sat)
+                      // 7 Day Bars (Sun - Sat) using Expanded
                       Positioned.fill(
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -585,7 +1336,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                                     const SizedBox(height: 8),
 
-                                    // Day Name Label (Sun - Sat)
+                                    // Day Name Label
                                     Text(
                                       _days[index],
                                       style: TextStyle(
@@ -640,19 +1391,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required Map<String, int> categorySplit,
     required bool isFuture,
   }) {
-    final totalSets = categorySplit.values.fold<int>(0, (sum, val) => sum + val);
+    final totalSets = categorySplit.values.fold<int>(
+      0,
+      (sum, val) => sum + val,
+    );
 
-    // Sort categories by highest set count
     final sortedEntries = categorySplit.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    final topCategory = sortedEntries.isNotEmpty ? sortedEntries.first.key : 'None';
+    final topCategory = sortedEntries.isNotEmpty
+        ? sortedEntries.first.key
+        : 'None';
     final topPercentage = totalSets > 0 && sortedEntries.isNotEmpty
         ? ((sortedEntries.first.value / totalSets) * 100).toInt()
         : 0;
 
     final values = sortedEntries.map((e) => e.value.toDouble()).toList();
-    final colors = sortedEntries.map((e) => AppTheme.getCategoryColor(e.key)).toList();
+    final colors = sortedEntries
+        .map((e) => AppTheme.getCategoryColor(e.key))
+        .toList();
     final topCategoryColor = sortedEntries.isNotEmpty
         ? AppTheme.getCategoryColor(sortedEntries.first.key)
         : AppTheme.primary;
@@ -712,11 +1469,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               if (!isFuture && topPercentage > 0)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: topCategoryColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: topCategoryColor.withValues(alpha: 0.35)),
+                    border: Border.all(
+                      color: topCategoryColor.withValues(alpha: 0.35),
+                    ),
                   ),
                   child: Text(
                     '🔥 $topCategory Focus',
@@ -801,7 +1563,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                 const SizedBox(width: 20),
 
-                // Right: Categories Legend Breakdown
+                // Right: Categories Legend Breakdown with Expanded
                 Expanded(
                   child: Column(
                     children: List.generate(sortedEntries.length, (index) {
@@ -854,59 +1616,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ],
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard({
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required String value,
-    required String sublabel,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: iconColor, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            sublabel,
-            style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary),
-          ),
         ],
       ),
     );

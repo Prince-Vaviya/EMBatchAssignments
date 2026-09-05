@@ -439,18 +439,18 @@ class _ReelPageItemState extends ConsumerState<_ReelPageItem> {
         Positioned.fill(
           child: IgnorePointer(
             child: Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    const Color(0x66000000),
+                    Color(0x66000000),
                     Colors.transparent,
                     Colors.transparent,
-                    const Color(0xCC000000),
-                    const Color(0xFF0A0A0A),
+                    Color(0xCC000000),
+                    Color(0xFF0A0A0A),
                   ],
-                  stops: const [0.0, 0.2, 0.45, 0.8, 1.0],
+                  stops: [0.0, 0.2, 0.45, 0.8, 1.0],
                 ),
               ),
             ),
