@@ -1,123 +1,139 @@
-# 🕵️‍♂️ Secret Agent Intelligence System
+# ⚡ NeoRegister — 3-Screen Membership Onboarding App
 
-> **Riverpod & GoRouter State Management Challenge**  
-> Resolving a security breach by upgrading the agent alias protocol from guest access to top-secret classified status using **Flutter Riverpod** (`StateNotifierProvider`) and **GoRouter** (`ShellRoute`).
-
----
-
-## 📱 Application Screenshots
-
-| 1. Initial State (Before Activation) | 2. Alias Activated (After Action) |
-| :---: | :---: |
-| <img src="docs/screenshots/01_before_click.png" width="100%" alt="Before Clicking Activate Alias" /> | <img src="docs/screenshots/02_after_click.png" width="100%" alt="After Clicking Activate Alias" /> |
-| `Agent 007: TargetAcquired` *(Initial Protocol)* | `Supreme Ninja: TargetAcquired` *(Alias Activated)* |
+> A robust, 3-screen registration and digital membership application built with **Flutter**, featuring **Named Route Navigation**, strict **Form Validation** (email regex, password security, required fields), backed by a strongly-typed **`UserRegistration` Data Model**, and designed with a vibrant **Neo-Brutalist Soft Pastel aesthetic**.
 
 ---
 
-## 🎯 Mission Objectives & Implementation
+## 📱 Application Screenshots & User Journey
 
-### 1. 🛡️ Initial State Breach Fix
-- **Issue**: The system was initialized with `'Guest'`, creating a security vulnerability.
-- **Fix**: Configured `UserNotifier` with default state `'Agent 007'`.
+| 1. Home Screen (`/`) | 2. Registration Form (`/form`) | 3. Digital ID Pass (`/detail`) |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/01_View_Members.png" width="100%" alt="Home Screen" /> | <img src="docs/screenshots/03_Add_Member.png" width="100%" alt="Registration Form" /> | <img src="docs/screenshots/02_Member_Details.png" width="100%" alt="Membership Detail Screen" /> |
+| *Hero onboarding banner & recent member pass list* | *Validated form fields, role chips & tier selector* | *Official verified digital ID badge with QR barcode* |
 
-```dart
-class UserNotifier extends StateNotifier<String> {
-  // Requirement 1: Initial state set to 'Agent 007'
-  UserNotifier() : super('Agent 007');
+---
 
-  void set(String alias) => state = alias;
-}
+## 🧭 3-Screen Navigation & Named Routes Architecture
 
-final userProvider = StateNotifierProvider<UserNotifier, String>((ref) {
-  return UserNotifier();
-});
+The application demonstrates decoupled, type-safe screen transitions using **Flutter's Named Routing System**:
+
+```
+┌────────────────────────┐      Navigator.pushNamed('/form')      ┌────────────────────────┐
+│      HomeScreen        │ ──────────────────────────────────────> │ RegistrationFormScreen │
+│   (Route: '/')         │                                         │   (Route: '/form')     │
+└────────────────────────┘                                         └────────────────────────┘
+          ▲                                                                    │
+          │                                                                    │ Navigator.pushNamed(
+          │                      Navigator.popUntil(ModalRoute.withName('/'))  │   '/detail',
+          │                                                                    │   arguments: user
+          │                                                                    ▼
+          │                                                        ┌────────────────────────┐
+          └─────────────────────────────────────────────────────── │      DetailScreen      │
+                                                                   │   (Route: '/detail')   │
+                                                                   └────────────────────────┘
 ```
 
----
+### 🗺️ Route Mapping Table
 
-### 2. 🌐 GoRouter Target Route Update
-- **Old Route**: `/shell/details/Alex`
-- **Updated Route**: `/shell/details/TargetAcquired`
-
-```dart
-final agentRouterProvider = Provider<GoRouter>((ref) {
-  return GoRouter(
-    // Requirement 4: Initial location updated
-    initialLocation: '/shell/details/TargetAcquired',
-    routes: [
-      ShellRoute(
-        builder: (context, state, child) => AgentShellScreen(child: child),
-        routes: [
-          GoRoute(
-            path: '/shell/details/:target',
-            builder: (context, state) {
-              final target = state.pathParameters['target'] ?? 'TargetAcquired';
-              return DetailScreen(target: target);
-            },
-          ),
-        ],
-      ),
-    ],
-  );
-});
-```
+| Route Name | Target Screen Widget | Navigation Method | Data Transmission |
+| :--- | :--- | :--- | :--- |
+| `'/'` | `HomeScreen` | `initialRoute` | Root landing page |
+| `'/form'` | `RegistrationFormScreen` | `Navigator.pushNamed(context, '/form')` | Onboarding trigger |
+| `'/detail'` | `DetailScreen` | `Navigator.pushNamed(context, '/detail', arguments: newUser)` | Passes `UserRegistration` model |
 
 ---
 
-### 3. ⚡ "Activate Alias" Action & State Mutation
-- **Button Label**: `"Activate Alias"`
-- **Action Trigger**: Invokes `ref.read(userProvider.notifier).set('Supreme Ninja')` to update the reactive Riverpod state.
+## 🔒 Form Validation Engine & Security Rules
 
-```dart
-ElevatedButton.icon(
-  onPressed: () {
-    // Requirement 3: Trigger state change to 'Supreme Ninja'
-    ref.read(userProvider.notifier).set('Supreme Ninja');
-  },
-  icon: const Icon(Icons.flash_on_rounded),
-  label: const Text('Activate Alias'),
-)
-```
+The registration form is backed by a **`GlobalKey<FormState>`** enforcing client-side validation rules before submission:
 
----
-
-## 📊 Expected Output Verification
-
-| Stage | Display Output | Description |
+| Field | Validation Rules | Error Feedback |
 | :--- | :--- | :--- |
-| **Before Clicking** | `Agent 007: TargetAcquired` | Default agent identity and classified route target. |
-| **After Clicking** | `Supreme Ninja: TargetAcquired` | Instant reactive UI update triggered via Riverpod `ref.read(...)`. |
+| **Full Name** | Required, trimmed length $\ge 3$ characters | `"Full name must be at least 3 characters"` |
+| **Email Address** | Required, regex pattern: `^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$` | `"Enter a valid email address (e.g. name@domain.com)"` |
+| **Password** | Required, minimum $\ge 8$ characters, visibility toggle (👁️) | `"Password must be at least 8 characters long"` |
+| **Confirm Password** | Required, must strictly equal Password field value | `"Passwords do not match"` |
+| **Terms & Conduct** | Required checkbox confirmation | `"You must accept the community terms & code of conduct."` |
 
 ---
 
-## 🛠️ Technical Architecture
+## 🎨 Neo-Brutalism & Soft Pastel Design System
 
-| Layer | Technology | Description |
+The UI combines the bold geometry of **Neo-Brutalism** with the gentle contrast of **Soft Pastel tones**:
+
+| Token Name | Hex Code | Visual Application | Role in UI |
+| :--- | :--- | :--- | :--- |
+| **Pastel Mint** | `#B8F2E6` | Submit CTA button, Home action tag | Primary interactive action |
+| **Pastel Lilac** | `#E8D7FF` | Hero onboarding banner | Main visual anchor |
+| **Pastel Butter** | `#FFF1A8` | Form instruction notice, ID badge tag | Notice alert & highlight |
+| **Pastel Peach** | `#FFD8BE` | Feature pillar card, Role selector | Secondary category accent |
+| **Pastel Lime** | `#D9F99D` | Brand header logo pill (`NEO`), Active status | Verification & logo badge |
+| **Pastel Rose** | `#FFCCD5` | Required asterisks (`*`), Error alerts | Warning & error states |
+| **Pure Black** | `#000000` | 2.5px chunky borders, hard shadows (`Offset(4, 4)`) | Structural outline |
+| **Warm Milk** | `#FFFDF5` | Scaffold background canvas | Soft off-white backdrop |
+
+---
+
+## 🛠️ Technical Stack & Architecture
+
+| Layer | Implementation | Description |
 | :--- | :--- | :--- |
 | **Framework** | Flutter 3.x / Dart 3.x | Cross-platform UI toolkit |
-| **State Management** | **Flutter Riverpod 2.5.1** | `StateNotifierProvider` & `ConsumerWidget` |
-| **Routing** | **GoRouter 14.8.1** | `ShellRoute` & dynamic path parameters (`:target`) |
-| **Theme** | Stealth Cyber Terminal | Dark background (`#0D1117`), Neon Green (`#00FF66`), Cyber Blue (`#58A6FF`) |
+| **Navigation** | **Named Routes** (`initialRoute`, `routes`) | Multi-screen navigation with route arguments |
+| **Form Handling** | `Form`, `GlobalKey<FormState>`, `TextFormField` | Client-side validation & controller disposal |
+| **Data Layer** | Strongly-typed `UserRegistration` model | ID generation, timestamps, pastel color tokens |
+| **Design Tokens** | Custom `NeoTheme` helper | Zero-blur hard shadows, rounded neo-boxes |
 
 ---
 
-## 🚀 Running the Application & Automated Tests
+## 🚀 Getting Started & Running Locally
 
-### Run on Flutter Web / Device
+### Prerequisites
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) (`>=3.3.0`)
+- Google Chrome, macOS, or an Android/iOS Simulator
+
+### Quick Start
 ```bash
-# 1. Fetch dependencies
+# 1. Clone the repository
+git clone https://github.com/Prince-Vaviya/EMBatchAssignments.git
+cd EMBatchAssignments
+
+# 2. Switch to the multi-screen-app branch
+git checkout multi-screen-app
+
+# 3. Get dependencies
 flutter pub get
 
-# 2. Run app
+# 4. Run on Flutter Web or Device
 flutter run -d chrome
 # or
 flutter run -d web-server --web-port 8080
 ```
 
-### Run Automated Unit & Widget Tests
+### Running Automated Widget Tests
 ```bash
+# Runs full 3-screen navigation flow & validation tests
 flutter test
 flutter analyze
+```
+
+---
+
+## 📂 Project Structure
+
+```text
+lib/
+├── main.dart                               # App entry point & Named Routes table
+├── models/
+│   └── user_registration.dart              # UserRegistration data model
+├── screens/
+│   ├── neo_home_screen.dart                # Screen 1: Home landing & member preview
+│   ├── neo_registration_form_screen.dart   # Screen 2: Validated registration form
+│   └── neo_detail_screen.dart              # Screen 3: Digital Membership ID pass
+└── theme/
+    └── neo_brutalist_pastel_theme.dart     # Neo-Brutalist soft pastel color palette & helpers
+test/
+└── neo_registration_test.dart              # Automated 3-screen widget & validation test
 ```
 
 ---
@@ -126,4 +142,4 @@ flutter analyze
 - **Student Name**: Prince Vaviya
 - **Student Roll No**: `150096724005`
 - **Course**: Dart Fundamentals & Flutter Cross-Platform Development
-- **Topic**: Riverpod StateNotifier & GoRouter Deep Linking Challenge
+- **Topic**: 3-Screen App with Named Routes & Form Validation (`GlobalKey<FormState>`)
