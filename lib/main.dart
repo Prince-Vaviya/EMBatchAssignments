@@ -1,22 +1,31 @@
 import 'package:flutter/material.dart';
-import 'screens/product_list_screen.dart';
-import 'theme/neo_brutalist_theme.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'router/agent_router.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const NeoBrutalistApp());
+  runApp(
+    // ProviderScope initializes Riverpod for the entire app tree
+    const ProviderScope(
+      child: AgentIntelligenceApp(),
+    ),
+  );
 }
 
-class NeoBrutalistApp extends StatelessWidget {
-  const NeoBrutalistApp({super.key});
+class AgentIntelligenceApp extends ConsumerWidget {
+  const AgentIntelligenceApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'NeoMart Product Listing',
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(agentRouterProvider);
+
+    return MaterialApp.router(
+      title: 'Secret Agent Intelligence',
       debugShowCheckedModeBanner: false,
-      theme: NeoBrutalistTheme.theme,
-      home: const ProductListScreen(),
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: const Color(0xFF0D1117),
+      ),
+      routerConfig: router,
     );
   }
 }

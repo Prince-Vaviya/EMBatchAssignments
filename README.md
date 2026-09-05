@@ -1,126 +1,123 @@
-# ⚡ NeoMart — Neo-Brutalist Soft Pastel Product Listing
+# 🕵️‍♂️ Secret Agent Intelligence System
 
-> A dynamic, high-impact e-commerce product catalog built with **Flutter**, featuring a **Neo-Brutalist soft pastel design system**, backed by a strongly-typed **`Product` Data Model**, powered by **`ListView.builder`**, and driven by real-time search, category filtering, and sorting using **`setState`**.
+> **Riverpod & GoRouter State Management Challenge**  
+> Resolving a security breach by upgrading the agent alias protocol from guest access to top-secret classified status using **Flutter Riverpod** (`StateNotifierProvider`) and **GoRouter** (`ShellRoute`).
 
 ---
 
 ## 📱 Application Screenshots
 
-| 1. Neo-Brutalist Product Feed | 2. Live Search & Filters | 3. Category & Sorting Filters |
-| :---: | :---: | :---: |
-| <img src="docs/screenshots/01_Product_Feed.png" width="100%" alt="Neo-Brutalist Product Feed" /> | <img src="docs/screenshots/02_Search_Filter.png" width="100%" alt="Search & Filtering" /> | <img src="docs/screenshots/03_Category_Sort.png" width="100%" alt="Category Sorting" /> |
-| *Dynamic `ListView.builder` with hard shadows & pastel cards* | *Real-time keyword search & On-Sale / Saved toggles* | *Horizontal category carousel & Price/Rating sorting* |
+| 1. Initial State (Before Activation) | 2. Alias Activated (After Action) |
+| :---: | :---: |
+| <img src="docs/screenshots/01_before_click.png" width="100%" alt="Before Clicking Activate Alias" /> | <img src="docs/screenshots/02_after_click.png" width="100%" alt="After Clicking Activate Alias" /> |
+| `Agent 007: TargetAcquired` *(Initial Protocol)* | `Supreme Ninja: TargetAcquired` *(Alias Activated)* |
 
 ---
 
-## 🎨 Neo-Brutalism & Soft Pastel Design System
+## 🎯 Mission Objectives & Implementation
 
-The application blends the raw energy of **Neo-Brutalism** (chunky black borders, hard zero-blur offset shadows, bold typography) with the gentle harmony of **Soft Pastel tones**:
+### 1. 🛡️ Initial State Breach Fix
+- **Issue**: The system was initialized with `'Guest'`, creating a security vulnerability.
+- **Fix**: Configured `UserNotifier` with default state `'Agent 007'`.
 
-| Token Name | Hex Code | Visual Application | Role in UI |
-| :--- | :--- | :--- | :--- |
-| **Pastel Mint** | `#B8F2E6` | Active Category Pill, "Add" Cart CTA | Primary interactive highlight |
-| **Pastel Lilac** | `#E8D7FF` | Audio gear card, "Saved" Favorites chip | Secondary category & filter accent |
-| **Pastel Peach** | `#FFD8BE` | Footwear card, Top Bar Cart badge | Cart indicator & lifestyle highlight |
-| **Pastel Butter** | `#FFF1A8` | Rating pill, "Reset Filters" action | Review badge & alert CTA |
-| **Pastel Sky** | `#BAE6FD` | Electronics card illustration box | Tech gear representation |
-| **Pastel Rose** | `#FFCCD5` | "On Sale" chip, Favorite ❤️ toggle | Discount badges & active hearts |
-| **Pastel Lime** | `#D9F99D` | Header brand logo pill (`NEO`) | Brand header accent |
-| **Pure Black** | `#000000` | 2.5px solid borders, hard shadows | Neo-brutalist structural outline |
-| **Warm Milk** | `#FFFDF5` | Scaffold background canvas | Soft off-white backdrop |
+```dart
+class UserNotifier extends StateNotifier<String> {
+  // Requirement 1: Initial state set to 'Agent 007'
+  UserNotifier() : super('Agent 007');
 
----
+  void set(String alias) => state = alias;
+}
 
-## 🌟 Core Features & State Operations (`setState`)
-
-### 1. 📦 Strongly-Typed `Product` Data Model Class
-- Defined in `lib/models/product.dart`.
-- Properties: `id`, `name`, `brand`, `description`, `price`, `originalPrice`, `discountPercent`, `rating`, `reviewCount`, `category`, `pastelColor`, `icon`, `badge`, `inStock`, `isFavorite`.
-- Computed getter `discountPercent` dynamically evaluates percentage savings (*e.g., "Save 27% Today"*).
-
-### 2. 📜 Dynamic `ListView.builder` Feed
-- Infinite-ready, performant list rendering via `ListView.builder`.
-- Each card incorporates:
-  - Header with Category Badge, Deal Tag (*"HOT DEAL 🔥"*, *"BESTSELLER ⚡"*), and Heart Favorite toggle.
-  - Pastel illustration box with thematic product icons.
-  - Multi-line title, brand subtitle, and star rating with review counts.
-  - Bottom action bar with current price, strike-through original price, and an **"Add"** to Cart button.
-
-### 3. 🔍 Real-Time Search & Keyword Matching
-- Instant filtering across product **names**, **brands**, and **descriptions** as the user types in the search bar.
-- Includes a quick clear (`✕`) action button.
-
-### 4. 🏷️ Category Filter Carousel
-- Horizontal scrollable filter bar with categories: `All`, `Electronics`, `Audio`, `Footwear`, `Lifestyle`, and `Accessories`.
-- Highlights the active category with pastel mint fill and hard offset drop shadow.
-
-### 5. ⚡ Quick Filter Toggles & Sorting Dropdown
-- **On Sale Filter**: Filters products where `originalPrice > price`.
-- **Saved / Favorites Filter**: Filters products marked as `isFavorite == true`.
-- **Multi-Option Sort Menu**: Sort products by:
-  - ✨ *Featured* (Default catalog order)
-  - 💵 *Price: Low ➔ High*
-  - 💎 *Price: High ➔ Low*
-  - ⭐ *Top Rated* (Highest review scores)
-
-### 6. 🛒 Interactive Cart & Favorite Actions
-- Tapping **"Add"** increments the top-right cart notification badge and displays a floating neo-brutalist SnackBar with confirmation.
-- Tapping ❤️ toggles the favorite state in-place with instant UI feedback.
-
-### 7. 🚫 Zero-Results Empty State
-- Displays a friendly empty state card with a one-tap **"Reset All Filters ⚡"** button when no items match active search criteria.
+final userProvider = StateNotifierProvider<UserNotifier, String>((ref) {
+  return UserNotifier();
+});
+```
 
 ---
 
-## 🛠️ Technical Stack & Architecture
+### 2. 🌐 GoRouter Target Route Update
+- **Old Route**: `/shell/details/Alex`
+- **Updated Route**: `/shell/details/TargetAcquired`
 
-| Layer | Technology |
-| :--- | :--- |
-| **Framework** | Flutter 3.x / Dart 3.x (Web, macOS, iOS, Android) |
-| **State Management** | **`StatefulWidget`** & native **`setState`** |
-| **Design System** | Custom `NeoBrutalistTheme` with hard shadows & pastel tokens |
-| **Data Layer** | Strongly-typed `Product` class with `ProductCategory` enums |
-| **Layout Widgets** | `ListView.builder`, `Column`, `Row`, `Expanded`, `AnimatedContainer`, `DropdownButton` |
+```dart
+final agentRouterProvider = Provider<GoRouter>((ref) {
+  return GoRouter(
+    // Requirement 4: Initial location updated
+    initialLocation: '/shell/details/TargetAcquired',
+    routes: [
+      ShellRoute(
+        builder: (context, state, child) => AgentShellScreen(child: child),
+        routes: [
+          GoRoute(
+            path: '/shell/details/:target',
+            builder: (context, state) {
+              final target = state.pathParameters['target'] ?? 'TargetAcquired';
+              return DetailScreen(target: target);
+            },
+          ),
+        ],
+      ),
+    ],
+  );
+});
+```
 
 ---
 
-## 🚀 Getting Started & Running Locally
+### 3. ⚡ "Activate Alias" Action & State Mutation
+- **Button Label**: `"Activate Alias"`
+- **Action Trigger**: Invokes `ref.read(userProvider.notifier).set('Supreme Ninja')` to update the reactive Riverpod state.
 
-### Prerequisites
-- [Flutter SDK](https://docs.flutter.dev/get-started/install) (`>=3.3.0`)
-- Google Chrome, macOS, or an Android/iOS Simulator
+```dart
+ElevatedButton.icon(
+  onPressed: () {
+    // Requirement 3: Trigger state change to 'Supreme Ninja'
+    ref.read(userProvider.notifier).set('Supreme Ninja');
+  },
+  icon: const Icon(Icons.flash_on_rounded),
+  label: const Text('Activate Alias'),
+)
+```
 
-### Installation
+---
+
+## 📊 Expected Output Verification
+
+| Stage | Display Output | Description |
+| :--- | :--- | :--- |
+| **Before Clicking** | `Agent 007: TargetAcquired` | Default agent identity and classified route target. |
+| **After Clicking** | `Supreme Ninja: TargetAcquired` | Instant reactive UI update triggered via Riverpod `ref.read(...)`. |
+
+---
+
+## 🛠️ Technical Architecture
+
+| Layer | Technology | Description |
+| :--- | :--- | :--- |
+| **Framework** | Flutter 3.x / Dart 3.x | Cross-platform UI toolkit |
+| **State Management** | **Flutter Riverpod 2.5.1** | `StateNotifierProvider` & `ConsumerWidget` |
+| **Routing** | **GoRouter 14.8.1** | `ShellRoute` & dynamic path parameters (`:target`) |
+| **Theme** | Stealth Cyber Terminal | Dark background (`#0D1117`), Neon Green (`#00FF66`), Cyber Blue (`#58A6FF`) |
+
+---
+
+## 🚀 Running the Application & Automated Tests
+
+### Run on Flutter Web / Device
 ```bash
-# 1. Clone the repository
-git clone https://github.com/Prince-Vaviya/EMBatchAssignments.git
-cd EMBatchAssignments
-
-# 2. Switch to the working branch
-git checkout todo-app
-
-# 3. Fetch dependencies
+# 1. Fetch dependencies
 flutter pub get
 
-# 4. Run on Chrome or Web Server
+# 2. Run app
 flutter run -d chrome
 # or
 flutter run -d web-server --web-port 8080
 ```
 
----
-
-## 📂 Project Directory Structure
-
-```text
-lib/
-├── main.dart                      # App entry point & Theme setup
-├── models/
-│   └── product.dart               # Product data model & Category enum
-├── screens/
-│   └── product_list_screen.dart   # Dynamic product listing & search/filter screen
-└── theme/
-    └── neo_brutalist_theme.dart   # Neo-Brutalist soft pastel color palette & shadow helpers
+### Run Automated Unit & Widget Tests
+```bash
+flutter test
+flutter analyze
 ```
 
 ---
@@ -129,4 +126,4 @@ lib/
 - **Student Name**: Prince Vaviya
 - **Student Roll No**: `150096724005`
 - **Course**: Dart Fundamentals & Flutter Cross-Platform Development
-- **Topic**: Dynamic Product Listing (`ListView.builder`, Data Model, `setState`)
+- **Topic**: Riverpod StateNotifier & GoRouter Deep Linking Challenge
