@@ -1,85 +1,108 @@
-# 🎯 Priority Matrix — Eisenhower Todo & Task Planner
+# ⚡ NeoMart — Neo-Brutalist Soft Pastel Product Listing
 
-> A minimalist, soft pastel-themed task management application built with **Flutter**, powered by **`StatefulWidget`** and **`setState`**, leveraging the time-tested **Eisenhower Decision Matrix** (Urgency vs. Importance).
+> A dynamic, high-impact e-commerce product catalog built with **Flutter**, featuring a **Neo-Brutalist soft pastel design system**, backed by a strongly-typed **`Product` Data Model**, powered by **`ListView.builder`**, and driven by real-time search, category filtering, and sorting using **`setState`**.
+
+---
 
 ## 📱 Application Screenshots
 
-| 1. 2x2 Matrix View | 2. Add Task Modal | 3. Move Quadrant Action | 4. Focus Quadrants Tab |
-| :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/04_Mobile_View.png" width="100%" alt="2x2 Priority Matrix" /> | <img src="docs/screenshots/01_Add_Task.png" width="100%" alt="Add Task Modal" /> | <img src="docs/screenshots/03_Change_Priority.png" width="100%" alt="Move Quadrant Menu" /> | <img src="docs/screenshots/02_View_Task.png" width="100%" alt="Focus Quadrant Tab" /> |
-| *Dual-Axis 2x2 Matrix* | *Dynamic Urgency/Importance Picker* | *Instant Priority Migration* | *Single Quadrant Deep Focus* |
+| 1. Neo-Brutalist Product Feed | 2. Live Search & Filters | 3. Category & Sorting Filters |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/01_Product_Feed.png" width="100%" alt="Neo-Brutalist Product Feed" /> | <img src="docs/screenshots/02_Search_Filter.png" width="100%" alt="Search & Filtering" /> | <img src="docs/screenshots/03_Category_Sort.png" width="100%" alt="Category Sorting" /> |
+| *Dynamic `ListView.builder` with hard shadows & pastel cards* | *Real-time keyword search & On-Sale / Saved toggles* | *Horizontal category carousel & Price/Rating sorting* |
 
 ---
 
-## 🌸 Visual Aesthetic & Soft Pastel Color System
+## 🎨 Neo-Brutalism & Soft Pastel Design System
 
-The application uses a calming, distraction-free pastel color palette tailored for focused productivity:
+The application blends the raw energy of **Neo-Brutalism** (chunky black borders, hard zero-blur offset shadows, bold typography) with the gentle harmony of **Soft Pastel tones**:
 
-| Quadrant | Priority | Role | Soft Pastel Tone |
+| Token Name | Hex Code | Visual Application | Role in UI |
 | :--- | :--- | :--- | :--- |
-| **Q1: Do First** | ⚡ Urgent & ★ Important | Crises, urgent deadlines, critical actions | **Soft Rose / Blush** (`#FFE4E6` / `#BE123C`) |
-| **Q2: Schedule** | ⏳ Not Urgent & ★ Important | Strategic goals, planning, deep learning | **Soft Sky Blue** (`#E0F2FE` / `#0369A1`) |
-| **Q3: Delegate** | ⚡ Urgent & ⚪ Not Important | Quick chores, interruptions, errands | **Soft Butter / Peach** (`#FEF3C7` / `#92400E`) |
-| **Q4: Eliminate** | ⏳ Not Urgent & ⚪ Not Important | Distractions, low-value tasks, relax | **Soft Mint / Sage** (`#DCFCE7` / `#15803D`) |
+| **Pastel Mint** | `#B8F2E6` | Active Category Pill, "Add" Cart CTA | Primary interactive highlight |
+| **Pastel Lilac** | `#E8D7FF` | Audio gear card, "Saved" Favorites chip | Secondary category & filter accent |
+| **Pastel Peach** | `#FFD8BE` | Footwear card, Top Bar Cart badge | Cart indicator & lifestyle highlight |
+| **Pastel Butter** | `#FFF1A8` | Rating pill, "Reset Filters" action | Review badge & alert CTA |
+| **Pastel Sky** | `#BAE6FD` | Electronics card illustration box | Tech gear representation |
+| **Pastel Rose** | `#FFCCD5` | "On Sale" chip, Favorite ❤️ toggle | Discount badges & active hearts |
+| **Pastel Lime** | `#D9F99D` | Header brand logo pill (`NEO`) | Brand header accent |
+| **Pure Black** | `#000000` | 2.5px solid borders, hard shadows | Neo-brutalist structural outline |
+| **Warm Milk** | `#FFFDF5` | Scaffold background canvas | Soft off-white backdrop |
 
 ---
 
-## 🚀 Core Features & Capabilities
+## 🌟 Core Features & State Operations (`setState`)
 
-### 1. 🧭 Interactive 2x2 Decision Matrix
-- **Dual-Axis Classification**:
-  - **Horizontal (Top)**: `⚡ URGENT` vs `⏳ NOT URGENT`
-  - **Vertical (Left)**: `★ IMPORTANT` vs `⚪ NOT IMPORTANT`
-- **Responsive & Overflow-Safe**: Specifically optimized for both mobile screens and desktop/tablet viewports.
-- **Instant Quick-Add (`+`)**: Directly add a task into any specific quadrant with one tap.
+### 1. 📦 Strongly-Typed `Product` Data Model Class
+- Defined in `lib/models/product.dart`.
+- Properties: `id`, `name`, `brand`, `description`, `price`, `originalPrice`, `discountPercent`, `rating`, `reviewCount`, `category`, `pastelColor`, `icon`, `badge`, `inStock`, `isFavorite`.
+- Computed getter `discountPercent` dynamically evaluates percentage savings (*e.g., "Save 27% Today"*).
 
-### 2. 📑 Focus Quadrant Tabs
-- Switch between **2x2 Matrix View** and **Quadrant Tabs View** using the top app bar toggle.
-- Allows deep focus on a single quadrant with detailed mission descriptions and category tags.
+### 2. 📜 Dynamic `ListView.builder` Feed
+- Infinite-ready, performant list rendering via `ListView.builder`.
+- Each card incorporates:
+  - Header with Category Badge, Deal Tag (*"HOT DEAL 🔥"*, *"BESTSELLER ⚡"*), and Heart Favorite toggle.
+  - Pastel illustration box with thematic product icons.
+  - Multi-line title, brand subtitle, and star rating with review counts.
+  - Bottom action bar with current price, strike-through original price, and an **"Add"** to Cart button.
 
-### 3. ⚡ Complete CRUD & State Management (`setState`)
-- **➕ Add Tasks**: Set title, optional description, category (*Work, Personal, Study, Health, Shopping*), and toggle Urgency & Importance with live pastel preview.
-- **✅ Mark Complete**: Interactive animated checkboxes apply strike-through formatting and update productivity progress in real-time.
-- **🔄 Move Quadrant**: Reassign tasks dynamically between `Q1 ↔ Q2 ↔ Q3 ↔ Q4` via the action dropdown.
-- **🗑️ Delete with Undo**: Remove tasks instantly with a floating pastel SnackBar containing an **UNDO** action.
+### 3. 🔍 Real-Time Search & Keyword Matching
+- Instant filtering across product **names**, **brands**, and **descriptions** as the user types in the search bar.
+- Includes a quick clear (`✕`) action button.
 
-### 4. 🔍 Real-Time Filter & Search
-- Live search bar filters tasks instantly across all 4 quadrants simultaneously.
-- Header progress pill displays completed vs. total task counts (`2/8 Done`).
+### 4. 🏷️ Category Filter Carousel
+- Horizontal scrollable filter bar with categories: `All`, `Electronics`, `Audio`, `Footwear`, `Lifestyle`, and `Accessories`.
+- Highlights the active category with pastel mint fill and hard offset drop shadow.
+
+### 5. ⚡ Quick Filter Toggles & Sorting Dropdown
+- **On Sale Filter**: Filters products where `originalPrice > price`.
+- **Saved / Favorites Filter**: Filters products marked as `isFavorite == true`.
+- **Multi-Option Sort Menu**: Sort products by:
+  - ✨ *Featured* (Default catalog order)
+  - 💵 *Price: Low ➔ High*
+  - 💎 *Price: High ➔ Low*
+  - ⭐ *Top Rated* (Highest review scores)
+
+### 6. 🛒 Interactive Cart & Favorite Actions
+- Tapping **"Add"** increments the top-right cart notification badge and displays a floating neo-brutalist SnackBar with confirmation.
+- Tapping ❤️ toggles the favorite state in-place with instant UI feedback.
+
+### 7. 🚫 Zero-Results Empty State
+- Displays a friendly empty state card with a one-tap **"Reset All Filters ⚡"** button when no items match active search criteria.
 
 ---
 
-## 🛠️ Architecture & Technical Stack
+## 🛠️ Technical Stack & Architecture
 
-| Layer | Implementation |
+| Layer | Technology |
 | :--- | :--- |
-| **Framework** | Flutter 3.x / Dart 3.x |
+| **Framework** | Flutter 3.x / Dart 3.x (Web, macOS, iOS, Android) |
 | **State Management** | **`StatefulWidget`** & native **`setState`** |
-| **Design Tokens** | Custom `PastelTheme` (Material 3 Light) |
-| **Models** | `TodoItem`, `EisenhowerQuadrant`, `TodoCategory` |
-| **Layouts** | `Column`, `Row`, `Expanded`, `RotatedBox`, `ListView.builder` |
+| **Design System** | Custom `NeoBrutalistTheme` with hard shadows & pastel tokens |
+| **Data Layer** | Strongly-typed `Product` class with `ProductCategory` enums |
+| **Layout Widgets** | `ListView.builder`, `Column`, `Row`, `Expanded`, `AnimatedContainer`, `DropdownButton` |
 
 ---
 
-## 🚀 How to Run the Project
+## 🚀 Getting Started & Running Locally
 
 ### Prerequisites
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) (`>=3.3.0`)
 - Google Chrome, macOS, or an Android/iOS Simulator
 
-### Quick Start
+### Installation
 ```bash
 # 1. Clone the repository
 git clone https://github.com/Prince-Vaviya/EMBatchAssignments.git
 cd EMBatchAssignments
 
-# 2. Switch to the todo-app branch
+# 2. Switch to the working branch
 git checkout todo-app
 
-# 3. Get dependencies
+# 3. Fetch dependencies
 flutter pub get
 
-# 4. Run on your desired platform
+# 4. Run on Chrome or Web Server
 flutter run -d chrome
 # or
 flutter run -d web-server --web-port 8080
@@ -87,22 +110,23 @@ flutter run -d web-server --web-port 8080
 
 ---
 
-## 📂 Project Structure
+## 📂 Project Directory Structure
 
 ```text
 lib/
-├── main.dart                  # App bootstrap & Theme configuration
+├── main.dart                      # App entry point & Theme setup
 ├── models/
-│   └── todo_item.dart         # EisenhowerQuadrant & TodoItem models
+│   └── product.dart               # Product data model & Category enum
 ├── screens/
-│   └── todo_screen.dart       # 2x2 Matrix & Tabbed Focus Screen (StatefulWidget)
+│   └── product_list_screen.dart   # Dynamic product listing & search/filter screen
 └── theme/
-    └── pastel_theme.dart      # Soft Pastel color palette & typography
+    └── neo_brutalist_theme.dart   # Neo-Brutalist soft pastel color palette & shadow helpers
 ```
 
 ---
 
-## 👨‍💻 Author & Course Info
+## 👨‍💻 Author Information
 - **Student Name**: Prince Vaviya
-- **Roll Number**: `150096724005`
-- **Topic**: Assignment — Eisenhower Matrix Todo App (`StatefulWidget` & `setState`)
+- **Student Roll No**: `150096724005`
+- **Course**: Dart Fundamentals & Flutter Cross-Platform Development
+- **Topic**: Dynamic Product Listing (`ListView.builder`, Data Model, `setState`)
